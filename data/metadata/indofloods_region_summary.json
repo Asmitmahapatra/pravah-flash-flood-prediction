@@ -1,0 +1,80 @@
+{
+  "Kerala Western Ghats": {
+    "stations": 26,
+    "open_stations": 26,
+    "restricted_stations": 0,
+    "events": 531,
+    "usable_events": 531,
+    "stations_with_events": 26,
+    "event_date_min": "1971-06-25",
+    "event_date_max": "2019-08-20",
+    "event_types": {
+      "Flood": 340,
+      "Severe Flood": 191
+    },
+    "severe_events": 191,
+    "missing_discharge": 41,
+    "missing_volume": 43,
+    "catchments": 26,
+    "precip_rows": 531,
+    "lat_range": [
+      8.715,
+      12.4792
+    ],
+    "lon_range": [
+      75.1472,
+      76.92
+    ]
+  },
+  "Maharashtra Western Ghats": {
+    "stations": 29,
+    "open_stations": 29,
+    "restricted_stations": 0,
+    "events": 817,
+    "usable_events": 817,
+    "stations_with_events": 29,
+    "event_date_min": "1965-08-01",
+    "event_date_max": "2020-05-27",
+    "event_types": {
+      "Flood": 436,
+      "Severe Flood": 381
+    },
+    "severe_events": 381,
+    "missing_discharge": 42,
+    "missing_volume": 56,
+    "catchments": 29,
+    "precip_rows": 817,
+    "lat_range": [
+      16.6753,
+      21.0719
+    ],
+    "lon_range": [
+      73.1108,
+      79.6478
+    ]
+  },
+  "Uttarakhand": {
+    "stations": 6,
+    "open_stations": 0,
+    "restricted_stations": 6,
+    "events": 0,
+    "usable_events": 0,
+    "stations_with_events": 0,
+    "event_date_min": null,
+    "event_date_max": null,
+    "event_types": {},
+    "severe_events": 0,
+    "missing_discharge": 0,
+    "missing_volume": 0,
+    "catchments": 0,
+    "precip_rows": 0,
+    "lat_range": [
+      29.98,
+      30.5669
+    ],
+    "lon_range": [
+      78.19,
+      79.5525
+    ]
+  }
+}
