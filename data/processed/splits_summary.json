@@ -1,0 +1,261 @@
+{
+  "pipeline_phase": "Phase 2C: Temporal Splitting",
+  "input_dataset": "master_daily_grid_with_rainfall.parquet",
+  "split_strategy": "Strict Chronological Partitioning",
+  "split_definitions": {
+    "train": {
+      "start_date": "1964-12-01",
+      "end_date": "2010-12-31",
+      "years": "1964\u20132010"
+    },
+    "val": {
+      "start_date": "2011-01-01",
+      "end_date": "2015-12-31",
+      "years": "2011\u20132015"
+    },
+    "test": {
+      "start_date": "2016-01-01",
+      "end_date": "2020-05-27",
+      "years": "2016\u20132020"
+    }
+  },
+  "validation_status": "ALL_CHECKS_PASSED",
+  "validation_checks": {
+    "check_1_temporal_disjointness": "PASSED",
+    "check_2_row_partition": {
+      "status": "PASSED",
+      "total_rows": 201344,
+      "train_rows": 155976,
+      "val_rows": 19783,
+      "test_rows": 25585,
+      "train_pct": 77.47,
+      "val_pct": 9.83,
+      "test_pct": 12.71
+    },
+    "check_3_operational_window": "PASSED",
+    "check_4_target_conservation": {
+      "status": "PASSED",
+      "target_onset": {
+        "train": {
+          "0": 155742,
+          "1": 137,
+          "2": 97
+        },
+        "val": {
+          "0": 19775,
+          "1": 7,
+          "2": 1
+        },
+        "test": {
+          "0": 25541,
+          "1": 25,
+          "2": 19
+        },
+        "total_positive": 286
+      },
+      "target_active": {
+        "train": {
+          "0": 155016,
+          "2": 606,
+          "1": 354
+        },
+        "val": {
+          "0": 19745,
+          "1": 21,
+          "2": 17
+        },
+        "test": {
+          "0": 25202,
+          "1": 272,
+          "2": 111
+        },
+        "total_positive": 1381
+      }
+    },
+    "check_5_station_coverage": {
+      "status": "PASSED",
+      "train_gauge_count": 10,
+      "val_gauge_count": 12,
+      "test_gauge_count": 20,
+      "train_gauges": [
+        "589",
+        "612",
+        "640",
+        "642",
+        "643",
+        "654",
+        "678",
+        "681",
+        "682",
+        "684"
+      ],
+      "val_gauges": [
+        "589",
+        "612",
+        "635",
+        "640",
+        "642",
+        "643",
+        "654",
+        "668",
+        "678",
+        "681",
+        "682",
+        "684"
+      ],
+      "test_gauges": [
+        "585",
+        "589",
+        "596",
+        "602",
+        "612",
+        "626",
+        "635",
+        "640",
+        "642",
+        "643",
+        "645",
+        "646",
+        "648",
+        "654",
+        "656",
+        "668",
+        "678",
+        "681",
+        "682",
+        "684"
+      ]
+    },
+    "check_6_feature_missingness": {
+      "status": "PASSED",
+      "total_nulls_in_rainfall_features": 0
+    },
+    "check_7_boundary_leakage": "PASSED"
+  },
+  "class_imbalance_statistics": {
+    "train": {
+      "total_rows": 155976,
+      "date_range": [
+        "1964-12-01",
+        "2010-12-31"
+      ],
+      "unique_gauges": 10,
+      "target_onset": {
+        "class_0_no_event": 155742,
+        "class_1_flood": 137,
+        "class_2_severe_flood": 97,
+        "total_positive": 234,
+        "positive_rate_pct": 0.15,
+        "imbalance_ratio": 665.6
+      },
+      "target_active": {
+        "class_0_inactive": 155016,
+        "class_1_flood": 354,
+        "class_2_severe_flood": 606,
+        "total_positive": 960,
+        "positive_rate_pct": 0.6155,
+        "imbalance_ratio": 161.5
+      },
+      "target_peak": {
+        "class_0_no_peak": 155742,
+        "class_1_flood": 137,
+        "class_2_severe_flood": 97,
+        "total_positive": 234,
+        "positive_rate_pct": 0.15
+      }
+    },
+    "val": {
+      "total_rows": 19783,
+      "date_range": [
+        "2011-01-01",
+        "2015-12-31"
+      ],
+      "unique_gauges": 12,
+      "target_onset": {
+        "class_0_no_event": 19775,
+        "class_1_flood": 7,
+        "class_2_severe_flood": 1,
+        "total_positive": 8,
+        "positive_rate_pct": 0.0404,
+        "imbalance_ratio": 2471.9
+      },
+      "target_active": {
+        "class_0_inactive": 19745,
+        "class_1_flood": 21,
+        "class_2_severe_flood": 17,
+        "total_positive": 38,
+        "positive_rate_pct": 0.1921,
+        "imbalance_ratio": 519.6
+      },
+      "target_peak": {
+        "class_0_no_peak": 19775,
+        "class_1_flood": 7,
+        "class_2_severe_flood": 1,
+        "total_positive": 8,
+        "positive_rate_pct": 0.0404
+      }
+    },
+    "test": {
+      "total_rows": 25585,
+      "date_range": [
+        "2016-01-01",
+        "2020-05-27"
+      ],
+      "unique_gauges": 20,
+      "target_onset": {
+        "class_0_no_event": 25541,
+        "class_1_flood": 25,
+        "class_2_severe_flood": 19,
+        "total_positive": 44,
+        "positive_rate_pct": 0.172,
+        "imbalance_ratio": 580.5
+      },
+      "target_active": {
+        "class_0_inactive": 25202,
+        "class_1_flood": 272,
+        "class_2_severe_flood": 111,
+        "total_positive": 383,
+        "positive_rate_pct": 1.497,
+        "imbalance_ratio": 65.8
+      },
+      "target_peak": {
+        "class_0_no_peak": 25541,
+        "class_1_flood": 25,
+        "class_2_severe_flood": 19,
+        "total_positive": 44,
+        "positive_rate_pct": 0.172
+      }
+    },
+    "all": {
+      "total_rows": 201344,
+      "date_range": [
+        "1964-12-01",
+        "2020-05-27"
+      ],
+      "unique_gauges": 20,
+      "target_onset": {
+        "class_0_no_event": 201058,
+        "class_1_flood": 169,
+        "class_2_severe_flood": 117,
+        "total_positive": 286,
+        "positive_rate_pct": 0.142,
+        "imbalance_ratio": 703.0
+      },
+      "target_active": {
+        "class_0_inactive": 199963,
+        "class_1_flood": 647,
+        "class_2_severe_flood": 734,
+        "total_positive": 1381,
+        "positive_rate_pct": 0.6859,
+        "imbalance_ratio": 144.8
+      },
+      "target_peak": {
+        "class_0_no_peak": 201058,
+        "class_1_flood": 169,
+        "class_2_severe_flood": 117,
+        "total_positive": 286,
+        "positive_rate_pct": 0.142
+      }
+    }
+  }
+}

@@ -4,29 +4,49 @@ PRAVAH is a data-driven AI and geospatial system for flash-flood prediction and 
 
 ---
 
-## Verified Study Region Definition & Master Daily Grid (Phase 1 & Phase 2)
+## Study Region Definition & Master Daily Modeling Grid (Phase 1 & Phase 2)
 
 - **Target Region:** Maharashtra Western Ghats (100 km Crest Line Corridor Proxy)
 - **Target Stations / Catchments:** 20 Open Gauge Stations
 - **Verified Target GaugeIDs:** `585`, `589`, `596`, `602`, `612`, `626`, `635`, `640`, `642`, `643`, `645`, `646`, `648`, `654`, `656`, `668`, `678`, `681`, `682`, `684`
 - **Master Daily Spatio-Temporal Grid Size:** **201,344 gauge-days** (1964-12-01 to 2020-05-27)
 - **Primary Relational Key:** `(GaugeID, Date)` composite key (0 duplicates, 0 nulls)
+- **Total Features & Targets:** 131 columns + `split` column (132 total)
+  - 3 dynamic flood target formulations (`target_onset`, `target_active`, `target_peak`)
+  - 10 pre-cutoff antecedent rainfall features (IMD 0.25° gridded daily rainfall, area-overlap weighted zonal mean)
+  - 107 static catchment morphology, climatic, socio-economic, soil, lithology, and land-cover descriptors
+  - Station metadata and coordinates
 
 ---
 
-## Phase 2 Target Labels & Event Totals
+## Phase 2 Target Formulations & Class Counts
 
-| Target Column | Description | No Event (`0`) | Flood (`1`) | Severe Flood (`2`) | Total Positive Days |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `target_onset` | Event Onset Day (`Start Date`) | 201,058 | 169 | 117 | **286** |
-| `target_active` | Event Active Duration (`Start Date` to `End Date`) | 199,963 | 647 | 734 | **1,381** |
-| `target_peak` | Event Peak Day (`Peak FL Date`) | 201,058 | 169 | 117 | **286** |
+| Target Column | Description | No Event (`0`) | Flood (`1`) | Severe Flood (`2`) | Total Positive Days | Positive Rate |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `target_onset` | Event Onset Day (`Start Date`) | 201,058 | 169 | 117 | **286** | 0.142% |
+| `target_active` | Event Active Duration (`Start Date` to `End Date`) | 199,963 | 647 | 734 | **1,381** | 0.686% |
+| `target_peak` | Event Peak Day (`Peak FL Date`) | 201,058 | 169 | 117 | **286** | 0.142% |
 
 - **Total Event-Day Assignments:** 1,381 days
-- **Unique Active Gauge-Days:** 1,381 days
-- **Overlapping Collision Count:** 0 collisions across all 286 events
+- **Unique Active Gauge-Days:** 1,381 days (0 overlapping collision days across all 286 events)
 - **Observation Bounds:** Negative labels (`0`) generated strictly within `[Start_date, End_date]` per station from `target_metadata.csv`. No negative labels fabricated outside operational observation windows.
-- **Leakage Prevention:** Prohibited post-event columns (`Peak Discharge`, `Peak FL`, `Volume`, `Duration`) and event-only `T1d`-`T10d` rainfall features are strictly excluded from predictors.
+- **Leakage Prevention:** Prohibited post-event columns (`Peak Discharge`, `Peak FL`, `Volume`, `Duration`) and event-only `T1d`-`T10d` rainfall features are strictly excluded from predictors. All daily precipitation features strictly use rainfall accumulated on or before Day $T-1$.
+
+---
+
+## Phase 2C Chronological Train / Validation / Test Splits
+
+| Split | Date Range | Operating Gauges | Total Gauge-Days | Split Share | Onset Positive Days (Rate) | Active Flood Days (Rate) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Train** | 1964-12-01 to 2010-12-31 | 10 legacy stations | 155,976 | 77.47% | 234 (0.150%) | 960 (0.616%) |
+| **Validation** | 2011-01-01 to 2015-12-31 | 12 stations | 19,783 | 9.83% | 8 (0.040%) | 38 (0.192%) |
+| **Test** | 2016-01-01 to 2020-05-27 | 20 stations | 25,585 | 12.71% | 44 (0.172%) | 383 (1.497%) |
+| **TOTAL** | **1964-12-01 to 2020-05-27** | **20 stations** | **201,344** | **100.0%** | **286 (0.142%)** | **1,381 (0.686%)** |
+
+- **Split Disjointness:** Strictly 0 overlapping dates across partitions.
+- **Chronological Progression:** Train max date (`2010-12-31`) < Validation min date (`2011-01-01`) < Test min date (`2016-01-01`).
+- **Zero Boundary Leakage:** Validation features on 2011-01-01 strictly use antecedent rainfall $\le$ 2010-12-31.
+- **Station Progression Audit:** Reflects historical commissioning of CWC gauge stations in Maharashtra Western Ghats (10 in 1964–1979, 2 commissioned in 2013–2014, 8 commissioned in 2016–2019).
 
 ---
 
@@ -34,10 +54,13 @@ PRAVAH is a data-driven AI and geospatial system for flash-flood prediction and 
 
 ```
 PRAVAH/
-├── README.md                                    # Project description & Phase 2 dataset specifications
+├── README.md                                    # Project description & dataset specifications
 ├── docs/                                        # Phase 1 audit & validation documentation
 ├── data/
-│   ├── raw/                                     # Immutable archives (INDOFLOODS v1.0 & IFI v3)
+│   ├── raw/                                     # Immutable archives (INDOFLOODS v1.0, IFI v3, IMD NetCDF)
+│   │   ├── indofloods/                          # Raw shapefiles & CSVs
+│   │   ├── ifi/                                 # India Flood Inventory raw tables
+│   │   └── imd_rainfall/                        # 57 yearly NetCDF files (1964–2020)
 │   ├── metadata/                                # Validation JSON summaries
 │   └── processed/                               # Cleaned & processed datasets
 │       ├── clean_catchments.geojson             # 155 valid catchments (EPSG:4326)
@@ -46,14 +69,21 @@ PRAVAH/
 │       ├── target_floodevents.csv               # 286 target region flood events
 │       ├── target_catchment_characteristics.csv # 20 target region catchment attribute rows
 │       ├── target_precipitation_variables.csv   # 286 target region antecedent precipitation rows
-│       ├── master_daily_grid.csv                # Master Date x GaugeID daily modeling grid (201,344 rows)
-│       ├── master_daily_grid.csv.gz             # Compressed daily modeling grid archive
-│       └── daily_grid_summary.json              # Machine-readable Phase 2 validation summary
+│       ├── target_catchment_daily_rainfall.csv  # 20 catchments x 1964–2020 daily rainfall
+│       ├── master_daily_grid.csv                # Master Date x GaugeID grid (201,344 rows x 121 cols)
+│       ├── master_daily_grid_with_rainfall.parquet # Daily grid + rainfall features (131 cols)
+│       ├── master_daily_grid_splits.parquet     # Master grid with 'split' column (132 cols, snappy)
+│       ├── master_daily_grid_splits.csv.gz      # Compressed archive with 'split' column
+│       ├── daily_grid_summary.json              # Phase 2A validation report
+│       ├── rainfall_pipeline_summary.json       # Phase 2B validation report
+│       └── splits_summary.json                  # Phase 2C validation report
 └── src/
     └── data/                                    # Data processing modules
         ├── clean_catchment_geometries.py        # Geometry repair & validation script
         ├── filter_target_region.py              # Regional filtering & integrity verification script
-        └── construct_daily_grid.py              # Daily spatio-temporal grid construction script
+        ├── construct_daily_grid.py              # Daily spatio-temporal grid construction script
+        ├── download_and_aggregate_rainfall.py   # IMD rainfall download & zonal aggregation script
+        └── create_temporal_splits.py            # Chronological temporal splitting script
 ```
 
 ---
@@ -63,9 +93,9 @@ PRAVAH/
 ### Completed:
 - [x] **Phase 1 Audit & Validation:** Full data profiling, catchment geometry repair (3 invalid geometries fixed, 5 duplicate pairs preserved), temporal precision audit, leakage audit.
 - [x] **Phase 1.5 Regional Harmonization:** Filtered all INDOFLOODS layers to the 20 target Maharashtra Western Ghats catchments (286 events).
-- [x] **Phase 2 Master Daily Grid Construction:** Built `master_daily_grid` (201,344 rows), dynamically calculated expected bounds, mapped three target formulations (`target_onset`, `target_active`, `target_peak`), joined static catchment characteristics (121 columns), and passed all 8 fail-fast empirical validation checks.
+- [x] **Phase 2A Master Daily Grid Construction:** Built `master_daily_grid` (201,344 rows), dynamically calculated expected bounds, mapped three target formulations (`target_onset`, `target_active`, `target_peak`), joined static catchment characteristics (121 columns), and passed all 8 fail-fast empirical validation checks.
+- [x] **Phase 2B Precipitation Pipeline:** Downloaded 57 years of IMD 0.25° daily gridded rainfall (1964–2020), executed EPSG:6933 equal-area zonal aggregation for all 20 catchments, engineered 9 antecedent rainfall features (strictly $\le T-1$, 0 leakage), and exported `master_daily_grid_with_rainfall.parquet`.
+- [x] **Phase 2C Chronological Splitting:** Implemented non-leaking chronological Train (1964–2010: 155,976 rows), Validation (2011–2015: 19,783 rows), and Test (2016–2020: 25,585 rows) partitions with automated validation checks and summary export.
 
 ### Pending / Next Steps:
-- [ ] **Sub-Daily Precipitation Retrieval & Spatial Clipping:** Download NASA GPM IMERG or ERA5 daily precipitation rasters for the target catchments to construct uniform rainfall predictor features across all 201,344 gauge-days.
-- [ ] **Chronological Train / Validation / Test Splitting:** Implement temporal splitting strategy for ML evaluation.
-- [ ] **ML Baseline Pipeline:** Train initial benchmark model (e.g. LightGBM / XGBoost / Random Forest) on the daily modeling grid.
+- [ ] **Phase 3 ML Baseline Pipeline:** Train benchmark classification models (e.g., LightGBM / XGBoost / Random Forest) on the chronological splits with class imbalance handling (class weighting / focal loss) for 1-day ahead flood onset and active flood warning.
