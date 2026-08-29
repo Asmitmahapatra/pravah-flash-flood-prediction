@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+data/raw/imd_rainfall/
+data/processed/master_daily_grid_with_rainfall.csv
+data/processed/master_daily_grid.csv
+data/processed/master_daily_grid_with_rainfall.csv

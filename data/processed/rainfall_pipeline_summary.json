@@ -1,0 +1,38 @@
+{
+  "dataset_name": "master_daily_grid_with_rainfall",
+  "total_rows": 201344,
+  "total_columns": 131,
+  "gauge_count": 20,
+  "date_min": "1964-12-01",
+  "date_max": "2020-05-27",
+  "rainfall_source": {
+    "name": "IMD 0.25-degree Daily Gridded Rainfall",
+    "provider": "India Meteorological Department (IMD Pune)",
+    "format": "NetCDF3 (ind{year}_rfp25.nc)",
+    "raw_download_path": "data/raw/imd_rainfall/",
+    "spatial_resolution": "0.25 x 0.25 degree (~27 km)",
+    "temporal_resolution": "Daily (24-hour accumulation ending at 08:30 IST / 03:00 UTC)",
+    "units": "mm/day",
+    "missing_value_encoding": "NaN / -999.0"
+  },
+  "zonal_aggregation_method": "Area-overlap weighted mean across intersecting grid cells per catchment",
+  "antecedent_features_engineered": [
+    "rain_1d",
+    "rain_2d_sum",
+    "rain_3d_sum",
+    "rain_5d_sum",
+    "rain_7d_sum",
+    "rain_10d_sum",
+    "rain_3d_max",
+    "rain_7d_max",
+    "rain_dry_days_3d",
+    "has_gpm_coverage"
+  ],
+  "prediction_time_cutoff": "Day T 00:00 UTC (Features use ONLY dates <= T-1)",
+  "leakage_rule_enforcement": {
+    "day_T_rainfall_excluded": true,
+    "indofloods_t1d_t10d_excluded": true,
+    "warmup_padding_days": 10
+  },
+  "validation_passed": true
+}

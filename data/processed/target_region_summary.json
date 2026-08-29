@@ -1,0 +1,192 @@
+{
+  "target_region": "Maharashtra Western Ghats 100km Crest Corridor Proxy",
+  "target_gauge_ids": [
+    "585",
+    "589",
+    "596",
+    "602",
+    "612",
+    "626",
+    "635",
+    "640",
+    "642",
+    "643",
+    "645",
+    "646",
+    "648",
+    "654",
+    "656",
+    "668",
+    "678",
+    "681",
+    "682",
+    "684"
+  ],
+  "target_gauge_count": 20,
+  "counts_before": {
+    "catchments_geojson_features": 155,
+    "metadata_rows": 214,
+    "floodevents_rows": 4548,
+    "catchment_characteristics_rows": 155,
+    "precipitation_variables_rows": 4548
+  },
+  "counts_after": {
+    "catchments_geojson_features": 20,
+    "metadata_rows": 20,
+    "floodevents_rows": 286,
+    "catchment_characteristics_rows": 20,
+    "precipitation_variables_rows": 286
+  },
+  "missing_records": {
+    "missing_in_catchments_vector": [],
+    "missing_in_metadata": [],
+    "missing_in_characteristics": [],
+    "missing_in_events": []
+  },
+  "orphan_records": {
+    "orphan_floodevents": 0,
+    "orphan_precipitation_rows": 0
+  },
+  "geospatial_validation": {
+    "crs": "EPSG:4326",
+    "invalid_geometries_count": 0,
+    "geometry_types": {
+      "Polygon": 20
+    }
+  },
+  "per_gauge_event_summary": {
+    "585": {
+      "total_events": 2,
+      "flood_types": {
+        "Flood": 2
+      }
+    },
+    "589": {
+      "total_events": 25,
+      "flood_types": {
+        "Flood": 16,
+        "Severe Flood": 9
+      }
+    },
+    "596": {
+      "total_events": 2,
+      "flood_types": {
+        "Flood": 1,
+        "Severe Flood": 1
+      }
+    },
+    "602": {
+      "total_events": 1,
+      "flood_types": {
+        "Flood": 1
+      }
+    },
+    "612": {
+      "total_events": 35,
+      "flood_types": {
+        "Flood": 21,
+        "Severe Flood": 14
+      }
+    },
+    "626": {
+      "total_events": 1,
+      "flood_types": {
+        "Severe Flood": 1
+      }
+    },
+    "635": {
+      "total_events": 9,
+      "flood_types": {
+        "Flood": 8,
+        "Severe Flood": 1
+      }
+    },
+    "640": {
+      "total_events": 26,
+      "flood_types": {
+        "Severe Flood": 14,
+        "Flood": 12
+      }
+    },
+    "642": {
+      "total_events": 14,
+      "flood_types": {
+        "Severe Flood": 12,
+        "Flood": 2
+      }
+    },
+    "643": {
+      "total_events": 69,
+      "flood_types": {
+        "Flood": 40,
+        "Severe Flood": 29
+      }
+    },
+    "645": {
+      "total_events": 2,
+      "flood_types": {
+        "Flood": 1,
+        "Severe Flood": 1
+      }
+    },
+    "646": {
+      "total_events": 10,
+      "flood_types": {
+        "Flood": 8,
+        "Severe Flood": 2
+      }
+    },
+    "648": {
+      "total_events": 1,
+      "flood_types": {
+        "Flood": 1
+      }
+    },
+    "654": {
+      "total_events": 13,
+      "flood_types": {
+        "Flood": 10,
+        "Severe Flood": 3
+      }
+    },
+    "656": {
+      "total_events": 1,
+      "flood_types": {
+        "Severe Flood": 1
+      }
+    },
+    "668": {
+      "total_events": 1,
+      "flood_types": {
+        "Severe Flood": 1
+      }
+    },
+    "678": {
+      "total_events": 29,
+      "flood_types": {
+        "Flood": 21,
+        "Severe Flood": 8
+      }
+    },
+    "681": {
+      "total_events": 26,
+      "flood_types": {
+        "Severe Flood": 15,
+        "Flood": 11
+      }
+    },
+    "682": {
+      "total_events": 14,
+      "flood_types": {
+        "Flood": 9,
+        "Severe Flood": 5
+      }
+    },
+    "684": {
+      "total_events": 5,
+      "flood_types": {
+        "Flood": 5
+      }
+    }
+  }
+}

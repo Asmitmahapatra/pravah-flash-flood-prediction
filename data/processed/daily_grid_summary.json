@@ -1,0 +1,45 @@
+{
+  "master_grid_rows": 201344,
+  "target_stations_count": 20,
+  "total_expected_gauge_days": 201344,
+  "date_range_min": "1964-12-01",
+  "date_range_max": "2020-05-27",
+  "event_totals": {
+    "total_event_records": 286,
+    "total_event_day_assignments": 1381,
+    "unique_active_gauge_days": 1381,
+    "overlap_collisions_count": 0
+  },
+  "target_label_counts": {
+    "target_onset": {
+      "0": 201058,
+      "1": 169,
+      "2": 117
+    },
+    "target_active": {
+      "0": 199963,
+      "2": 734,
+      "1": 647
+    },
+    "target_peak": {
+      "0": 201058,
+      "1": 169,
+      "2": 117
+    }
+  },
+  "leakage_rules": {
+    "post_event_variables_excluded": [
+      "Peak Flood Level (m)",
+      "Peak FL Date",
+      "Peak Discharge Q (cumec)",
+      "Peak Discharge Date",
+      "Flood Volume (cumec)",
+      "Event Duration (days)",
+      "Time to Peak (days)",
+      "Recession Time (day)"
+    ],
+    "t1d_t10d_rainfall_excluded": true,
+    "precedence_rule_for_overlaps": "Severe Flood [2] > Flood [1] > No Event [0]"
+  },
+  "validation_passed": true
+}

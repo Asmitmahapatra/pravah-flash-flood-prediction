@@ -1,0 +1,21 @@
+GaugeID,Warning Level,Danger Level,Station,Latitude,Longitude,River Name/ Tributory/ SubTributory,Basin,State,Start_date,End_date,Level_Entries,Streamflow_Entries,Privacy,Source Catchment Area,Catchment Area,Area variation (%),Reliability
+INDOFLOODS-gauge-643,534.0,536.0,Terwad (seasonal),16.6753,74.5736,Krishna/ Panchganga,Krishna,Maharashtra,1979-08-22,2020-05-27,12115,12181,Open,2425.0,2428.131836,0.129147876,Safe
+INDOFLOODS-gauge-612,419.0,420.5,Takli,17.4131,75.8478,Krishna/Bhima,Krishna,Maharashtra,1965-06-01,2020-05-27,19424,19619,Open,33916.0,33145.60938,2.271466623,Safe
+INDOFLOODS-gauge-678,535.64,537.16,Kurundwad,16.6836,74.6031,Krishna,Krishna,Maharashtra,1972-05-01,2020-05-27,17315,17105,Open,15190.0,14981.12305,1.375095128,Safe
+INDOFLOODS-gauge-640,504.0,505.0,Dhond,18.4739,74.5764,Krishna/Bhima,Krishna,Maharashtra,1967-12-01,2019-08-20,14665,14434,Open,11660.0,11295.41992,3.126758834,Safe
+INDOFLOODS-gauge-681,541.95,543.15,Samdoli (seasonal),16.855,74.4967,Krishna/Varna,Krishna,Maharashtra,1964-12-01,2020-05-27,16662,18193,Open,1948.0,1949.87561,0.096283881,Safe
+INDOFLOODS-gauge-589,539.2,540.7,Arjunwad (seasonal),16.7808,74.6333,Krishna,Krishna,Maharashtra,1969-01-01,2020-05-27,17213,17095,Open,12660.0,12321.25586,2.675704107,Safe
+INDOFLOODS-gauge-642,458.403,459.033,Narsingpur,17.9722,75.1392,Krishna/Bhima,Krishna,Maharashtra,1966-12-01,2019-08-20,18376,19046,Open,22856.0,22102.80469,3.2953942510000003,Safe
+INDOFLOODS-gauge-682,474.128,475.128,Sarati,17.9114,75.0075,Krishna/Bhima/ Nira,Krishna,Maharashtra,1965-06-01,2019-08-20,14289,17466,Open,7200.0,6681.524902,7.201043028,Safe
+INDOFLOODS-gauge-654,562.8,565.2,Warunji,17.2722,74.165,Krishna/Koyna,Krishna,Maharashtra,1966-01-01,2020-05-27,19414,19210,Open,1890.0,1853.016968,1.95677418,Safe
+INDOFLOODS-gauge-646,8.0,9.0,Nagothane,18.5192,73.1564,Amba,West flowing rivers from Tapi of Tadri,Maharashtra,2016-05-01,2020-05-27,870,734,Open,420.0,436.1244507,3.839154929,Safe
+INDOFLOODS-gauge-635,490.9,493.68,Kopergaon,19.8783,74.4819,Godavari,Godavari,Maharashtra,2014-06-01,2020-05-27,1508,945,Open,6840.0,6916.848633,1.123518026,Safe
+INDOFLOODS-gauge-684,563.41,567.04,Karad,17.2944,74.1903,Krishna,Krishna,Maharashtra,1965-06-01,2020-05-27,19776,19544,Open,5462.0,5337.689941,2.275907342,Safe
+INDOFLOODS-gauge-596,9.4,11.0,Niivali,17.0692,73.45,Bav,West flowing rivers from Tapi of Tadri,Maharashtra,2018-01-01,2020-05-27,607,0,Open,421.0,408.33078,3.009315914,Safe
+INDOFLOODS-gauge-645,558.1,559.6,Nasik,20.0019,73.8033,Godavari,Godavari,Maharashtra,2018-01-01,2020-05-07,585,0,Open,650.0,693.2064209,6.6471416770000005,Safe
+INDOFLOODS-gauge-585,88.0,90.0,Ozerkheda,20.1006,73.2706,Damanganga/ Wagh,West flowing rivers from  Tapi to Tadri,Maharashtra,2019-02-05,2020-01-31,327,0,Open,640.0,637.4835205,0.393199922,Safe
+INDOFLOODS-gauge-648,12.295,13.0,Pen,18.7367,73.1108,Bhogeswari,West flowing rivers from Tapi of Tadri,Maharashtra,2016-05-01,2020-05-25,922,691,Open,125.0,123.8492584,0.92059328,Safe
+INDOFLOODS-gauge-602,10.0,11.0,Mahad,18.0922,73.4603,Savitri,West flowing rivers from Tapi of Tadri,Maharashtra,2018-01-01,2020-05-27,520,0,Open,758.6,861.9865112,13.62859362,Safe
+INDOFLOODS-gauge-668,16.5,17.5,Badlapur,19.1622,73.2544,Ulhas,West flowing rivers from Tapi of Tadri,Maharashtra,2013-06-01,2020-05-27,1191,1075,Open,785.0,961.7387085,22.51448516,Safe
+INDOFLOODS-gauge-656,540.17,542.21,Nandre,16.95,74.53,Yerala,Krishna,Maharashtra,2018-01-01,2020-05-27,549,199,Open,3038.0,2928.480469,3.604987854,Safe
+INDOFLOODS-gauge-626,496.83,497.58,Ujani dam,18.07,75.12,Krishna,Krishna,Maharashtra,2018-11-01,2019-08-20,242,0,Open,,14911.732419999998,,Caution
