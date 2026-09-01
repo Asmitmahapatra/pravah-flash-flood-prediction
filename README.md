@@ -68,11 +68,31 @@ PRAVAH is a data-driven AI and geospatial system for flash-flood prediction and 
 
 ---
 
+## Phase 4 Real-Time Inference Engine & REST API Backend
+
+PRAVAH provides a production-grade **FastAPI REST API** and **Inference Engine** for live flood prediction and historical simulation replay:
+
+### Running the API Server:
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+Interactive Swagger Documentation: `http://localhost:8000/docs`
+
+### Key API Endpoints:
+- `GET /health` — Service health, loaded models, total catchments.
+- `GET /api/v1/catchments` — GeoJSON FeatureCollection of all 20 catchments with station telemetry.
+- `GET /api/v1/catchments/{gauge_id}` — Single station metadata and danger levels.
+- `POST /api/v1/predict/live` — Real-time flood risk scoring given a 10-day rainfall sequence.
+- `GET /api/v1/predict/historical/{date}` — Simulation replay across all catchments for any date (1964–2020).
+- `GET /api/v1/models/summary` — Performance benchmarks, decision thresholds, and feature importances.
+
+---
+
 ## Repository Layout & Pipeline Architecture
 
 ```
 PRAVAH/
-├── README.md                                    # Project description & benchmark results
+├── README.md                                    # Project description & API documentation
 ├── docs/                                        # Phase 1 audit & validation documentation
 ├── data/
 │   ├── raw/                                     # Immutable archives (INDOFLOODS v1.0, IFI v3, IMD NetCDF)
@@ -105,7 +125,8 @@ PRAVAH/
 │   ├── task_b_active_LightGBM.joblib            # Active LightGBM pipeline
 │   └── task_b_active_RandomForest.joblib        # Active Random Forest pipeline
 ├── tests/                                       # Data integrity & regression test suite
-│   └── test_pravah_data_integrity.py            # Unit tests for data schemas & feature guards
+│   ├── test_pravah_data_integrity.py            # Unit tests for data schemas & feature guards
+│   └── test_inference_and_api.py                # Unit & API integration test suite (13/13 passed)
 └── src/
     ├── data/                                    # Data processing modules
     │   ├── clean_catchment_geometries.py        # Geometry repair & validation script
@@ -113,9 +134,14 @@ PRAVAH/
     │   ├── construct_daily_grid.py              # Daily spatio-temporal grid construction script
     │   ├── download_and_aggregate_rainfall.py   # IMD rainfall download & zonal aggregation script
     │   └── create_temporal_splits.py            # Chronological temporal splitting script
-    └── model/                                   # Machine learning training & evaluation
-        ├── baseline_flood_model.py              # Baseline model prototype
-        └── train_classifiers.py                 # Multi-model training, threshold tuning & export
+    ├── model/                                   # Machine learning training & evaluation
+    │   ├── baseline_flood_model.py              # Baseline model prototype
+    │   └── train_classifiers.py                 # Multi-model training, threshold tuning & export
+    ├── inference/                               # Real-time inference engine
+    │   └── predictor.py                         # PravahInferenceEngine class
+    └── api/                                     # FastAPI REST backend service
+        ├── app.py                               # Route definitions and application server
+        └── schemas.py                           # Pydantic request/response schemas
 ```
 
 ---
@@ -129,3 +155,4 @@ PRAVAH/
 - [x] **Phase 2B Precipitation Pipeline:** Downloaded 57 years of IMD 0.25° daily gridded rainfall (1964–2020), executed EPSG:6933 equal-area zonal aggregation for all 20 catchments, engineered 9 antecedent rainfall features (strictly $\le T-1$, 0 leakage), and exported `master_daily_grid_with_rainfall.parquet`.
 - [x] **Phase 2C Chronological Splitting:** Implemented non-leaking chronological Train (1964–2010: 155,976 rows), Validation (2011–2015: 19,783 rows), and Test (2016–2020: 25,585 rows) partitions with automated validation checks and summary export.
 - [x] **Phase 3 ML Benchmark & Checkpoints:** Trained Random Forest, LightGBM, and XGBoost classifiers on Onset and Active flood tasks, optimized decision thresholds on Validation, evaluated on Test (2016–2020), and serialized all fitted models into `models/`.
+- [x] **Phase 4 Inference Engine & REST API:** Built `PravahInferenceEngine` and FastAPI backend service (`src/api/app.py`) supporting live risk scoring, GeoJSON catchment telemetry, and historical simulation replays. Verified with 13/13 passing automated unit/integration tests.
