@@ -1,0 +1,462 @@
+{
+  "task_a_onset": {
+    "RandomForest": {
+      "threshold": 0.2935,
+      "precision": 0.0319634703196347,
+      "recall": 0.1590909090909091,
+      "f1": 0.053231939163498096,
+      "csi": 0.02734375,
+      "roc_auc": 0.8383637182284455,
+      "average_precision": 0.06291266399908592,
+      "positive_count": 219,
+      "val_threshold": 0.2935,
+      "val_roc_auc": 0.9965044247787611,
+      "val_average_precision": 0.09390844195081445,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_2d_sum",
+          "importance": 0.12302825238850487
+        },
+        {
+          "feature": "num__rain_3d_max",
+          "importance": 0.12267072754839882
+        },
+        {
+          "feature": "num__rain_5d_sum",
+          "importance": 0.10976658579120799
+        },
+        {
+          "feature": "num__rain_7d_sum",
+          "importance": 0.1096977426483317
+        },
+        {
+          "feature": "num__rain_3d_sum",
+          "importance": 0.10871041221295404
+        },
+        {
+          "feature": "num__rain_1d",
+          "importance": 0.10440831907197065
+        },
+        {
+          "feature": "num__rain_7d_max",
+          "importance": 0.0929873581794062
+        },
+        {
+          "feature": "num__rain_10d_sum",
+          "importance": 0.0916456521973098
+        },
+        {
+          "feature": "num__rain_dry_days_3d",
+          "importance": 0.05835262638898818
+        },
+        {
+          "feature": "num__has_gpm_coverage",
+          "importance": 0.003059528625216553
+        },
+        {
+          "feature": "num__Downvalley Length",
+          "importance": 0.002857242224302678
+        },
+        {
+          "feature": "num__2010_GDP_PPP",
+          "importance": 0.002817803685310249
+        },
+        {
+          "feature": "num__Drainage Intensity",
+          "importance": 0.0023286105648732663
+        },
+        {
+          "feature": "num__Mean Temperature of Coldest Quarter",
+          "importance": 0.002227043224986763
+        },
+        {
+          "feature": "num__Firstorder Streams  Mean  Length",
+          "importance": 0.0022079595733511645
+        }
+      ]
+    },
+    "LightGBM": {
+      "threshold": 0.0,
+      "precision": 0.0017197576705100645,
+      "recall": 1.0,
+      "f1": 0.003433610363260369,
+      "csi": 0.0017197576705100645,
+      "roc_auc": 0.8102258044997172,
+      "average_precision": 0.010549907504009115,
+      "positive_count": 25585,
+      "val_threshold": 0.0,
+      "val_roc_auc": 0.7843331226295829,
+      "val_average_precision": 0.0029518245635394933,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_10d_sum",
+          "importance": 428
+        },
+        {
+          "feature": "num__rain_7d_sum",
+          "importance": 377
+        },
+        {
+          "feature": "num__rain_1d",
+          "importance": 348
+        },
+        {
+          "feature": "num__rain_2d_sum",
+          "importance": 313
+        },
+        {
+          "feature": "num__rain_3d_sum",
+          "importance": 301
+        },
+        {
+          "feature": "num__rain_7d_max",
+          "importance": 291
+        },
+        {
+          "feature": "num__rain_5d_sum",
+          "importance": 274
+        },
+        {
+          "feature": "num__rain_3d_max",
+          "importance": 195
+        },
+        {
+          "feature": "num__Precipitation of Driest Month",
+          "importance": 68
+        },
+        {
+          "feature": "num__has_gpm_coverage",
+          "importance": 46
+        },
+        {
+          "feature": "num__Latitude",
+          "importance": 39
+        },
+        {
+          "feature": "num__Longitude",
+          "importance": 32
+        },
+        {
+          "feature": "num__Warning_Level",
+          "importance": 31
+        },
+        {
+          "feature": "num__1990_HDI",
+          "importance": 30
+        },
+        {
+          "feature": "num__SecondThird Stream Length Ratio",
+          "importance": 23
+        }
+      ]
+    },
+    "XGBoost": {
+      "threshold": 0.8210000000000001,
+      "precision": 0.06329113924050633,
+      "recall": 0.11363636363636363,
+      "f1": 0.08130081300813008,
+      "csi": 0.0423728813559322,
+      "roc_auc": 0.793530277521703,
+      "average_precision": 0.04210865244900481,
+      "positive_count": 79,
+      "val_threshold": 0.8210000000000001,
+      "val_roc_auc": 0.9952402022756005,
+      "val_average_precision": 0.13114577025725907,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_3d_sum",
+          "importance": 0.13668590784072876
+        },
+        {
+          "feature": "num__2015_GDP_PC_PPP",
+          "importance": 0.1061590388417244
+        },
+        {
+          "feature": "num__rain_3d_max",
+          "importance": 0.08422474563121796
+        },
+        {
+          "feature": "num__Annual Mean Temperature",
+          "importance": 0.06758908182382584
+        },
+        {
+          "feature": "num__Mean Diurnal Range",
+          "importance": 0.06635306030511856
+        },
+        {
+          "feature": "num__rain_2d_sum",
+          "importance": 0.04871508106589317
+        },
+        {
+          "feature": "num__Secondorder Streams Length",
+          "importance": 0.047679122537374496
+        },
+        {
+          "feature": "num__ThirdForth Bifurcation Ratio",
+          "importance": 0.029486816376447678
+        },
+        {
+          "feature": "num__Drainage Density",
+          "importance": 0.02714766003191471
+        },
+        {
+          "feature": "num__Mean Temperature of Coldest Quarter",
+          "importance": 0.024625102058053017
+        },
+        {
+          "feature": "num__Mean Temperature of Driest Quarter",
+          "importance": 0.014656748622655869
+        },
+        {
+          "feature": "num__Longitude",
+          "importance": 0.013236923143267632
+        },
+        {
+          "feature": "num__Precipitation of Driest Month",
+          "importance": 0.01178524736315012
+        },
+        {
+          "feature": "num__Drainage Texture",
+          "importance": 0.011262120679020882
+        },
+        {
+          "feature": "num__Relief Ratio",
+          "importance": 0.011187471449375153
+        }
+      ]
+    }
+  },
+  "task_b_active": {
+    "RandomForest": {
+      "threshold": 0.5425,
+      "precision": 0.1322314049586777,
+      "recall": 0.1671018276762402,
+      "f1": 0.14763552479815456,
+      "csi": 0.07970112079701121,
+      "roc_auc": 0.7036304881103762,
+      "average_precision": 0.08214325813286152,
+      "positive_count": 484,
+      "val_threshold": 0.5425,
+      "val_roc_auc": 0.9967346829976943,
+      "val_average_precision": 0.33214973188452707,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_10d_sum",
+          "importance": 0.14311525609830952
+        },
+        {
+          "feature": "num__rain_5d_sum",
+          "importance": 0.13353706058774412
+        },
+        {
+          "feature": "num__rain_7d_sum",
+          "importance": 0.12739277326470655
+        },
+        {
+          "feature": "num__rain_7d_max",
+          "importance": 0.10312261307570712
+        },
+        {
+          "feature": "num__rain_3d_sum",
+          "importance": 0.09340271704482433
+        },
+        {
+          "feature": "num__rain_2d_sum",
+          "importance": 0.07964713799864155
+        },
+        {
+          "feature": "num__rain_3d_max",
+          "importance": 0.07116092984331937
+        },
+        {
+          "feature": "num__rain_dry_days_3d",
+          "importance": 0.0576211651910864
+        },
+        {
+          "feature": "num__rain_1d",
+          "importance": 0.05449168676606099
+        },
+        {
+          "feature": "num__Latitude",
+          "importance": 0.006350569863023281
+        },
+        {
+          "feature": "num__2010_GDP_PPP",
+          "importance": 0.006149919368817152
+        },
+        {
+          "feature": "num__Drainage Intensity",
+          "importance": 0.0059514909483027395
+        },
+        {
+          "feature": "num__1990_GDP_PPP",
+          "importance": 0.005440339047790752
+        },
+        {
+          "feature": "num__Mean Temperature of Coldest Quarter",
+          "importance": 0.005163796273208138
+        },
+        {
+          "feature": "num__Isothermality",
+          "importance": 0.005021432503116894
+        }
+      ]
+    },
+    "LightGBM": {
+      "threshold": 0.9490000000000001,
+      "precision": 0.11469534050179211,
+      "recall": 0.2506527415143603,
+      "f1": 0.15737704918032788,
+      "csi": 0.08540925266903915,
+      "roc_auc": 0.7552411502008938,
+      "average_precision": 0.06928184659750931,
+      "positive_count": 837,
+      "val_threshold": 0.9490000000000001,
+      "val_roc_auc": 0.9939065186389625,
+      "val_average_precision": 0.33101101621259976,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_7d_max",
+          "importance": 1821
+        },
+        {
+          "feature": "num__rain_10d_sum",
+          "importance": 1721
+        },
+        {
+          "feature": "num__rain_1d",
+          "importance": 1675
+        },
+        {
+          "feature": "num__rain_5d_sum",
+          "importance": 1434
+        },
+        {
+          "feature": "num__rain_3d_max",
+          "importance": 1425
+        },
+        {
+          "feature": "num__rain_7d_sum",
+          "importance": 1297
+        },
+        {
+          "feature": "num__rain_2d_sum",
+          "importance": 1101
+        },
+        {
+          "feature": "num__rain_3d_sum",
+          "importance": 1066
+        },
+        {
+          "feature": "num__has_gpm_coverage",
+          "importance": 432
+        },
+        {
+          "feature": "num__Latitude",
+          "importance": 408
+        },
+        {
+          "feature": "num__1990_HDI",
+          "importance": 290
+        },
+        {
+          "feature": "num__Mean Temperature of Coldest Quarter",
+          "importance": 281
+        },
+        {
+          "feature": "num__Longitude",
+          "importance": 254
+        },
+        {
+          "feature": "num__Firstorder Streams  Mean  Length",
+          "importance": 136
+        },
+        {
+          "feature": "num__Warning_Level",
+          "importance": 125
+        }
+      ]
+    },
+    "XGBoost": {
+      "threshold": 0.97,
+      "precision": 0.2209737827715356,
+      "recall": 0.15404699738903394,
+      "f1": 0.18153846153846154,
+      "csi": 0.09983079526226735,
+      "roc_auc": 0.6744134028900272,
+      "average_precision": 0.0791606143135321,
+      "positive_count": 267,
+      "val_threshold": 0.97,
+      "val_roc_auc": 0.9959123562260932,
+      "val_average_precision": 0.3332550996352447,
+      "val_precision_recall_curve": null,
+      "top_15_features": [
+        {
+          "feature": "num__rain_5d_sum",
+          "importance": 0.17871013283729553
+        },
+        {
+          "feature": "num__rain_7d_sum",
+          "importance": 0.13118767738342285
+        },
+        {
+          "feature": "num__Drainage Density",
+          "importance": 0.05152186378836632
+        },
+        {
+          "feature": "num__Danger_Level",
+          "importance": 0.04766842722892761
+        },
+        {
+          "feature": "num__Precipitation of Warmest Quarter",
+          "importance": 0.04629044234752655
+        },
+        {
+          "feature": "num__Mean Temperature of Driest Quarter",
+          "importance": 0.040022339671850204
+        },
+        {
+          "feature": "num__FirstSecond Stream Length Ratio",
+          "importance": 0.03827355057001114
+        },
+        {
+          "feature": "num__Warning_Level",
+          "importance": 0.03727967292070389
+        },
+        {
+          "feature": "num__rain_10d_sum",
+          "importance": 0.03072584606707096
+        },
+        {
+          "feature": "num__SecondThird Stream Length Ratio",
+          "importance": 0.02581639215350151
+        },
+        {
+          "feature": "num__Population Count",
+          "importance": 0.025377769023180008
+        },
+        {
+          "feature": "num__2010_GDP_PPP",
+          "importance": 0.022288532927632332
+        },
+        {
+          "feature": "num__Mean Temperature of Coldest Quarter",
+          "importance": 0.017065564170479774
+        },
+        {
+          "feature": "num__Thirdorder Streams Mean Length",
+          "importance": 0.01561643835157156
+        },
+        {
+          "feature": "num__Drainage Area",
+          "importance": 0.015276693738996983
+        }
+      ]
+    }
+  }
+}

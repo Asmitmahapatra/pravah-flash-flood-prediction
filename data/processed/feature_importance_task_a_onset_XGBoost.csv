@@ -1,0 +1,16 @@
+feature,importance
+num__rain_3d_sum,0.13668591
+num__2015_GDP_PC_PPP,0.10615904
+num__rain_3d_max,0.084224746
+num__Annual Mean Temperature,0.06758908
+num__Mean Diurnal Range,0.06635306
+num__rain_2d_sum,0.04871508
+num__Secondorder Streams Length,0.047679123
+num__ThirdForth Bifurcation Ratio,0.029486816
+num__Drainage Density,0.02714766
+num__Mean Temperature of Coldest Quarter,0.024625102
+num__Mean Temperature of Driest Quarter,0.014656749
+num__Longitude,0.013236923
+num__Precipitation of Driest Month,0.011785247
+num__Drainage Texture,0.011262121
+num__Relief Ratio,0.011187471

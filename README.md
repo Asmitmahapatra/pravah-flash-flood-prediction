@@ -50,11 +50,29 @@ PRAVAH is a data-driven AI and geospatial system for flash-flood prediction and 
 
 ---
 
-## Repository Layout & Data Pipeline
+## Phase 3 Machine Learning Benchmark Results (Out-of-Sample Test Set 2016–2020)
+
+### Task A: 1-Day Ahead Flood Onset (`target_onset > 0`)
+| Model | Threshold | Precision | Recall | F1 Score | CSI | ROC-AUC | PR-AUC (Avg Precision) | Model Artifact |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **RandomForest** | `0.2935` | 3.20% | 15.91% | **0.0532** | **0.0273** | **0.8384** | **0.0629** | `models/task_a_onset_RandomForest.joblib` |
+| **XGBoost** | `0.8210` | 6.33% | 11.36% | **0.0813** | **0.0424** | 0.7935 | 0.0421 | `models/task_a_onset_XGBoost.joblib` |
+| **LightGBM** | `0.0000` | 0.17% | 100.0% | 0.0034 | 0.0017 | 0.8102 | 0.0105 | `models/task_a_onset_LightGBM.joblib` |
+
+### Task B: Daily Active Flood State (`target_active > 0`)
+| Model | Threshold | Precision | Recall | F1 Score | CSI | ROC-AUC | PR-AUC (Avg Precision) | Model Artifact |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **XGBoost** | `0.9700` | **22.10%** | 15.40% | **0.1815** | **0.0998** | 0.6744 | 0.0792 | `models/task_b_active_XGBoost.joblib` |
+| **LightGBM** | `0.9490` | 11.47% | **25.07%** | 0.1574 | 0.0854 | **0.7552** | 0.0693 | `models/task_b_active_LightGBM.joblib` |
+| **RandomForest** | `0.5425` | 13.22% | 16.71% | 0.1476 | 0.0797 | 0.7036 | **0.0821** | `models/task_b_active_RandomForest.joblib` |
+
+---
+
+## Repository Layout & Pipeline Architecture
 
 ```
 PRAVAH/
-├── README.md                                    # Project description & dataset specifications
+├── README.md                                    # Project description & benchmark results
 ├── docs/                                        # Phase 1 audit & validation documentation
 ├── data/
 │   ├── raw/                                     # Immutable archives (INDOFLOODS v1.0, IFI v3, IMD NetCDF)
@@ -76,14 +94,28 @@ PRAVAH/
 │       ├── master_daily_grid_splits.csv.gz      # Compressed archive with 'split' column
 │       ├── daily_grid_summary.json              # Phase 2A validation report
 │       ├── rainfall_pipeline_summary.json       # Phase 2B validation report
-│       └── splits_summary.json                  # Phase 2C validation report
+│       ├── splits_summary.json                  # Phase 2C validation report
+│       ├── model_evaluation_metrics.json        # Phase 3 model benchmark report
+│       └── feature_importance_*.png             # Top 15 feature importance charts
+├── models/                                      # Serialized trained model binaries
+│   ├── task_a_onset_RandomForest.joblib         # Best Onset model (ROC-AUC 0.8384)
+│   ├── task_a_onset_XGBoost.joblib              # Onset XGBoost pipeline
+│   ├── task_a_onset_LightGBM.joblib             # Onset LightGBM pipeline
+│   ├── task_b_active_XGBoost.joblib             # Best Active model (F1 0.1815, CSI 0.0998)
+│   ├── task_b_active_LightGBM.joblib            # Active LightGBM pipeline
+│   └── task_b_active_RandomForest.joblib        # Active Random Forest pipeline
+├── tests/                                       # Data integrity & regression test suite
+│   └── test_pravah_data_integrity.py            # Unit tests for data schemas & feature guards
 └── src/
-    └── data/                                    # Data processing modules
-        ├── clean_catchment_geometries.py        # Geometry repair & validation script
-        ├── filter_target_region.py              # Regional filtering & integrity verification script
-        ├── construct_daily_grid.py              # Daily spatio-temporal grid construction script
-        ├── download_and_aggregate_rainfall.py   # IMD rainfall download & zonal aggregation script
-        └── create_temporal_splits.py            # Chronological temporal splitting script
+    ├── data/                                    # Data processing modules
+    │   ├── clean_catchment_geometries.py        # Geometry repair & validation script
+    │   ├── filter_target_region.py              # Regional filtering & integrity verification script
+    │   ├── construct_daily_grid.py              # Daily spatio-temporal grid construction script
+    │   ├── download_and_aggregate_rainfall.py   # IMD rainfall download & zonal aggregation script
+    │   └── create_temporal_splits.py            # Chronological temporal splitting script
+    └── model/                                   # Machine learning training & evaluation
+        ├── baseline_flood_model.py              # Baseline model prototype
+        └── train_classifiers.py                 # Multi-model training, threshold tuning & export
 ```
 
 ---
@@ -96,6 +128,4 @@ PRAVAH/
 - [x] **Phase 2A Master Daily Grid Construction:** Built `master_daily_grid` (201,344 rows), dynamically calculated expected bounds, mapped three target formulations (`target_onset`, `target_active`, `target_peak`), joined static catchment characteristics (121 columns), and passed all 8 fail-fast empirical validation checks.
 - [x] **Phase 2B Precipitation Pipeline:** Downloaded 57 years of IMD 0.25° daily gridded rainfall (1964–2020), executed EPSG:6933 equal-area zonal aggregation for all 20 catchments, engineered 9 antecedent rainfall features (strictly $\le T-1$, 0 leakage), and exported `master_daily_grid_with_rainfall.parquet`.
 - [x] **Phase 2C Chronological Splitting:** Implemented non-leaking chronological Train (1964–2010: 155,976 rows), Validation (2011–2015: 19,783 rows), and Test (2016–2020: 25,585 rows) partitions with automated validation checks and summary export.
-
-### Pending / Next Steps:
-- [ ] **Phase 3 ML Baseline Pipeline:** Train benchmark classification models (e.g., LightGBM / XGBoost / Random Forest) on the chronological splits with class imbalance handling (class weighting / focal loss) for 1-day ahead flood onset and active flood warning.
+- [x] **Phase 3 ML Benchmark & Checkpoints:** Trained Random Forest, LightGBM, and XGBoost classifiers on Onset and Active flood tasks, optimized decision thresholds on Validation, evaluated on Test (2016–2020), and serialized all fitted models into `models/`.

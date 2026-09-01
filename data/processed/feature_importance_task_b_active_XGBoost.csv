@@ -1,0 +1,16 @@
+feature,importance
+num__rain_5d_sum,0.17871013
+num__rain_7d_sum,0.13118768
+num__Drainage Density,0.051521864
+num__Danger_Level,0.047668427
+num__Precipitation of Warmest Quarter,0.046290442
+num__Mean Temperature of Driest Quarter,0.04002234
+num__FirstSecond Stream Length Ratio,0.03827355
+num__Warning_Level,0.037279673
+num__rain_10d_sum,0.030725846
+num__SecondThird Stream Length Ratio,0.025816392
+num__Population Count,0.025377769
+num__2010_GDP_PPP,0.022288533
+num__Mean Temperature of Coldest Quarter,0.017065564
+num__Thirdorder Streams Mean Length,0.015616438
+num__Drainage Area,0.015276694

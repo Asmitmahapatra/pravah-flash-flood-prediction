@@ -1,0 +1,16 @@
+feature,importance
+num__rain_10d_sum,428
+num__rain_7d_sum,377
+num__rain_1d,348
+num__rain_2d_sum,313
+num__rain_3d_sum,301
+num__rain_7d_max,291
+num__rain_5d_sum,274
+num__rain_3d_max,195
+num__Precipitation of Driest Month,68
+num__has_gpm_coverage,46
+num__Latitude,39
+num__Longitude,32
+num__Warning_Level,31
+num__1990_HDI,30
+num__SecondThird Stream Length Ratio,23

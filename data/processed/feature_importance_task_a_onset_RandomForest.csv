@@ -1,0 +1,16 @@
+feature,importance
+num__rain_2d_sum,0.12302825238850487
+num__rain_3d_max,0.12267072754839882
+num__rain_5d_sum,0.10976658579120799
+num__rain_7d_sum,0.1096977426483317
+num__rain_3d_sum,0.10871041221295404
+num__rain_1d,0.10440831907197065
+num__rain_7d_max,0.0929873581794062
+num__rain_10d_sum,0.0916456521973098
+num__rain_dry_days_3d,0.05835262638898818
+num__has_gpm_coverage,0.003059528625216553
+num__Downvalley Length,0.002857242224302678
+num__2010_GDP_PPP,0.002817803685310249
+num__Drainage Intensity,0.0023286105648732663
+num__Mean Temperature of Coldest Quarter,0.002227043224986763
+num__Firstorder Streams  Mean  Length,0.0022079595733511645
