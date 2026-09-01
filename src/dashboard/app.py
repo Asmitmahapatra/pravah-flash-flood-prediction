@@ -13,12 +13,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from streamlit_folium import st_folium
+import streamlit.components.v1 as components
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.live_weather import get_live_rainfall_for_station
 from src.inference.predictor import PravahInferenceEngine, clean_gauge_id
 
 st.set_page_config(
@@ -96,6 +97,7 @@ with st.sidebar:
     st.info("📍 **Domain:** 20 Open Gauge Stations across the 100 km Maharashtra Western Ghats corridor proxy.")
 
 
+
 # --- MAIN HEADER ---
 header_col1, header_col2 = st.columns([1, 4])
 with header_col1:
@@ -131,19 +133,29 @@ if selected_view == "🗺️ Live Risk & Catchment Map":
         selected_gauge = st.selectbox("Target Station Catchment", gauge_list, format_func=lambda x: gauge_labels[x], index=19)
         
         preset_choice = st.selectbox("Quick Rainfall Preset Scenario", list(PRESETS.keys()), index=0)
-        
+        live_toggle = st.toggle("Use live rainfall from Open-Meteo", value=False)
+
         rainfall_values = []
-        if preset_choice != "Custom Sliders" and PRESETS[preset_choice] is not None:
-            rainfall_values = PRESETS[preset_choice]
-            st.markdown(f"**Applied Scenario (Days T-10 to T-1):**")
-            st.code(f"{rainfall_values}")
-        else:
-            st.markdown("**10-Day Pre-Cutoff Daily Rainfall ($P_{T-10} \\dots P_{T-1}$ mm):**")
-            c1, c2 = st.columns(2)
-            for i in range(10):
-                target_col = c1 if i < 5 else c2
-                val = target_col.number_input(f"Day T-{10-i} (mm)", min_value=0.0, max_value=500.0, value=25.0 if i >= 6 else 5.0, step=5.0, key=f"rain_day_{i}")
-                rainfall_values.append(float(val))
+        if live_toggle:
+            station_info = engine.get_station_info(selected_gauge)
+            try:
+                rainfall_values, source_meta = get_live_rainfall_for_station(station_info)
+                st.success(f"Live rainfall loaded from {source_meta['source']} for {station_info.get('station_name', 'selected gauge')}.")
+            except Exception as exc:
+                st.warning(f"Live rainfall unavailable: {exc}. Falling back to manual values.")
+                rainfall_values = PRESETS["Custom Sliders"] if PRESETS["Custom Sliders"] is None else PRESETS["Custom Sliders"]
+        if not live_toggle:
+            if preset_choice != "Custom Sliders" and PRESETS[preset_choice] is not None:
+                rainfall_values = PRESETS[preset_choice]
+                st.markdown(f"**Applied Scenario (Days T-10 to T-1):**")
+                st.code(f"{rainfall_values}")
+            else:
+                st.markdown("**10-Day Pre-Cutoff Daily Rainfall ($P_{T-10} \\dots P_{T-1}$ mm):**")
+                c1, c2 = st.columns(2)
+                for i in range(10):
+                    target_col = c1 if i < 5 else c2
+                    val = target_col.number_input(f"Day T-{10-i} (mm)", min_value=0.0, max_value=500.0, value=25.0 if i >= 6 else 5.0, step=5.0, key=f"rain_day_{i}")
+                    rainfall_values.append(float(val))
         
         # Run prediction
         pred_res = engine.predict_live(
@@ -190,28 +202,18 @@ if selected_view == "🗺️ Live Risk & Catchment Map":
             height=230,
             margin=dict(l=20, r=20, t=35, b=20),
         )
-        st.plotly_chart(fig_rain, use_container_width=True)
+        st.plotly_chart(fig_rain, width="stretch")
 
     with col_map:
         st.markdown("#### 🗺️ Geospatial Catchment Boundary Map")
         
-        # 100% Free OpenStreetMap tile layer (ZERO API Key required!)
+        # Use a single stable OpenStreetMap base layer to avoid Leaflet iframe errors
         m = folium.Map(
             location=[18.0, 74.3],
             zoom_start=8,
             tiles="OpenStreetMap",
             control_scale=True,
         )
-        
-        # Add Topography layer option
-        folium.TileLayer(
-            tiles="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-            attr='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
-            name="Topography (OpenTopoMap)",
-        ).add_to(m)
-        
-        folium.LayerControl(position="topright").add_to(m)
-        Fullscreen(position="topleft").add_to(m)
         
         # Add Catchment Polygons
         for feature in geojson_data.get("features", []):
@@ -250,7 +252,7 @@ if selected_view == "🗺️ Live Risk & Catchment Map":
                     icon=folium.Icon(color=marker_color, icon="tint", prefix="fa"),
                 ).add_to(m)
         
-        st_folium(m, width=750, height=620)
+        components.html(m.get_root().render(), height=620, scrolling=False)
 
 
 # =========================================================================
@@ -320,7 +322,7 @@ elif selected_view == "⏳ Historical Simulation Replay":
             "rain_3d_sum_mm": "Rain 3d (mm)",
             "rain_7d_sum_mm": "Rain 7d (mm)",
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -351,7 +353,7 @@ elif selected_view == "📊 Model Benchmarks & Explainability":
                 "ROC-AUC": round(m_dict.get("roc_auc", 0), 4),
                 "Average Precision (PR-AUC)": round(m_dict.get("average_precision", 0), 4),
             })
-        st.dataframe(pd.DataFrame(rows_a), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows_a), width="stretch", hide_index=True)
         
         # Feature Importance Chart
         rf_feats = metrics.get("task_a_onset", {}).get("RandomForest", {}).get("top_15_features", [])
@@ -370,7 +372,7 @@ elif selected_view == "📊 Model Benchmarks & Explainability":
                 color_continuous_scale="Blues",
             )
             fig.update_layout(height=450)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     with tab_b:
         st.markdown("#### Task B — Daily Active Flood State Classification (`target_active > 0`)")
@@ -388,7 +390,7 @@ elif selected_view == "📊 Model Benchmarks & Explainability":
                 "ROC-AUC": round(m_dict.get("roc_auc", 0), 4),
                 "Average Precision (PR-AUC)": round(m_dict.get("average_precision", 0), 4),
             })
-        st.dataframe(pd.DataFrame(rows_b), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows_b), width="stretch", hide_index=True)
         
         # XGBoost Feature Importance
         xgb_feats = metrics.get("task_b_active", {}).get("XGBoost", {}).get("top_15_features", [])
@@ -407,7 +409,7 @@ elif selected_view == "📊 Model Benchmarks & Explainability":
                 color_continuous_scale="Tealgrn",
             )
             fig_b.update_layout(height=450)
-            st.plotly_chart(fig_b, use_container_width=True)
+            st.plotly_chart(fig_b, width="stretch")
 
 
 # =========================================================================

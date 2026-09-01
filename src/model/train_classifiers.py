@@ -129,6 +129,39 @@ def csi_score(pred: np.ndarray, y_true: np.ndarray) -> float:
     return float(tp / denom) if denom else 0.0
 
 
+def select_model_for_task(metrics: dict[str, dict]) -> str:
+    """Pick the most operationally useful genuine-data model.
+
+    This penalizes models that chase recall at the expense of precision so that the
+    recommended model remains useful in deployment rather than only maximizing one
+    metric on a highly imbalanced flood dataset.
+    """
+    eligible: dict[str, float] = {}
+    for model_name, stats in metrics.items():
+        precision = float(stats.get("precision", 0.0) or 0.0)
+        recall = float(stats.get("recall", 0.0) or 0.0)
+        f1 = float(stats.get("f1", 0.0) or 0.0)
+        csi = float(stats.get("csi", 0.0) or 0.0)
+
+        if precision < 0.02 or recall < 0.08:
+            continue
+
+        score = 0.45 * f1 + 0.25 * csi + 0.20 * precision + 0.10 * recall
+        eligible[model_name] = score
+
+    if not eligible:
+        return max(
+            metrics,
+            key=lambda model_name: (
+                float(metrics[model_name].get("f1", 0.0) or 0.0),
+                float(metrics[model_name].get("precision", 0.0) or 0.0),
+                float(metrics[model_name].get("recall", 0.0) or 0.0),
+            ),
+        )
+
+    return max(eligible, key=eligible.get)
+
+
 def select_threshold(y_true: np.ndarray, proba: np.ndarray, min_recall: float = 0.75) -> float:
     thresholds = np.linspace(0.0, 1.0, 2001)
     best_threshold = 0.5
@@ -270,6 +303,11 @@ def main() -> None:
         json.dump(payload, fh, indent=2)
 
     print("Saved evaluation metrics to:", METRICS_PATH)
+    recommended = {
+        task_name: select_model_for_task(task_results)
+        for task_name, task_results in payload.items()
+    }
+    print("Recommended models:", recommended)
     for task_name, task_results in payload.items():
         print(f"\n{task_name}")
         row_data = []
