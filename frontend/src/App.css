@@ -1,3 +1,5 @@
+ .earth-canvas { position: relative; z-index: 1; width: min(42vw, 570px); height: 570px; }
+ @media (max-width: 720px) { .earth-canvas { width: 100%; height: 320px; } }
  .network-status b.offline { color: var(--coral); }
  .offline-dot { background: var(--coral); box-shadow: 0 0 0 4px rgba(219,116,85,.12); }
  .network-status small.notify-ready { color: var(--teal); }

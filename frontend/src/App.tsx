@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet'
 import { Activity, AlertTriangle, BarChart3, Bell, CalendarDays, Check, ChevronRight, Clock3, CloudRain, Gauge, Layers3, LocateFixed, Menu, Radio, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Waves, X } from 'lucide-react'
 import type { FeatureCollection, Feature } from 'geojson'
+import * as THREE from 'three'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 
@@ -30,6 +31,104 @@ function MapViewport({ selected }: { selected: Station | undefined }) {
   return null
 }
 
+function EarthGlobe() {
+  const mountRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const mount = mountRef.current
+    if (!mount) return
+
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100)
+    camera.position.set(0, 0.15, 4.2)
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setSize(mount.clientWidth, mount.clientHeight)
+    renderer.outputColorSpace = THREE.SRGBColorSpace
+    mount.appendChild(renderer.domElement)
+
+    const earthGroup = new THREE.Group()
+    earthGroup.rotation.y = -0.65
+    scene.add(earthGroup)
+    const loader = new THREE.TextureLoader()
+    const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
+    earthTexture.colorSpace = THREE.SRGBColorSpace
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(1.45, 64, 64),
+      new THREE.MeshPhongMaterial({ map: earthTexture, shininess: 14, specular: new THREE.Color('#6e9b9a') }),
+    )
+    earthGroup.add(earth)
+
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 64, 64),
+      new THREE.MeshBasicMaterial({ color: '#6bd4bd', transparent: true, opacity: 0.11, side: THREE.BackSide }),
+    )
+    earthGroup.add(atmosphere)
+
+    const latitude = 18.5 * Math.PI / 180
+    const longitude = 74 * Math.PI / 180
+    const markerRadius = 1.48
+    const marker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), new THREE.MeshBasicMaterial({ color: '#f28a63' }))
+    marker.position.set(-markerRadius * Math.cos(latitude) * Math.cos(longitude), markerRadius * Math.sin(latitude), markerRadius * Math.cos(latitude) * Math.sin(longitude))
+    earthGroup.add(marker)
+
+    const starPositions = new Float32Array(900)
+    for (let index = 0; index < starPositions.length; index += 3) {
+      const radius = 5 + Math.random() * 3
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      starPositions[index] = radius * Math.sin(phi) * Math.cos(theta)
+      starPositions[index + 1] = radius * Math.cos(phi)
+      starPositions[index + 2] = radius * Math.sin(phi) * Math.sin(theta)
+    }
+    const stars = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: '#b7ddca', size: 0.018, transparent: true, opacity: 0.7 }))
+    stars.geometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
+    scene.add(stars)
+
+    scene.add(new THREE.AmbientLight('#9bc8bb', 0.35))
+    const sun = new THREE.DirectionalLight('#fff4d6', 2.2)
+    sun.position.set(-3, 2, 4)
+    scene.add(sun)
+    const rim = new THREE.PointLight('#4bd1bb', 1.1, 8)
+    rim.position.set(2, -1, -3)
+    scene.add(rim)
+
+    const resize = () => {
+      if (!mount) return
+      camera.aspect = mount.clientWidth / mount.clientHeight
+      camera.updateProjectionMatrix()
+      renderer.setSize(mount.clientWidth, mount.clientHeight)
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(mount)
+    let frame = 0
+    const animate = () => {
+      earthGroup.rotation.y += 0.0018
+      stars.rotation.y -= 0.00015
+      renderer.render(scene, camera)
+      frame = requestAnimationFrame(animate)
+    }
+    animate()
+
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      earthTexture.dispose()
+      earth.geometry.dispose()
+      earth.material.dispose()
+      atmosphere.geometry.dispose()
+      atmosphere.material.dispose()
+      marker.geometry.dispose()
+      marker.material.dispose()
+      stars.geometry.dispose()
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
+      renderer.dispose()
+    }
+  }, [])
+
+  return <div className="earth-canvas" ref={mountRef} />
+}
+
 function LandingPage({ onEnter }: { onEnter: () => void }) {
   return (
     <main className="landing-page">
@@ -43,9 +142,8 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
           <div className="landing-facts"><span><b>20</b> monitored catchments</span><span><b>6</b> calibrated ML models</span><span><b>1964–2020</b> historical replay</span></div>
           <button className="landing-enter" onClick={onEnter}>Enter operations console <ChevronRight size={18} /></button>
         </div>
-        <div className="globe-stage" aria-label="Rotating globe representing the monitored Western Ghats region">
-          <div className="globe-halo halo-one" /><div className="globe-halo halo-two" />
-          <div className="globe"><div className="globe-longitude longitude-one" /><div className="globe-longitude longitude-two" /><div className="globe-latitude latitude-one" /><div className="globe-latitude latitude-two" /><div className="globe-latitude latitude-three" /><span className="globe-point point-one" /><span className="globe-point point-two" /><span className="globe-point point-three" /></div>
+        <div className="globe-stage" aria-label="Rotating Earth showing the monitored Western Ghats region">
+          <div className="globe-halo halo-one" /><div className="globe-halo halo-two" /><EarthGlobe />
           <div className="globe-caption"><span className="live-dot" /> WESTERN GHATS / INDIA</div>
         </div>
       </section>
