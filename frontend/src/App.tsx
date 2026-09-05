@@ -30,6 +30,30 @@ function MapViewport({ selected }: { selected: Station | undefined }) {
   return null
 }
 
+function LandingPage({ onEnter }: { onEnter: () => void }) {
+  return (
+    <main className="landing-page">
+      <div className="landing-grid" />
+      <div className="landing-topline"><span className="landing-mark"><Waves size={18} /></span><span>PRAVAH / RISK INTELLIGENCE SYSTEM</span><span className="landing-status"><i /> SYSTEM READY</span></div>
+      <section className="landing-content">
+        <div className="landing-copy">
+          <p className="eyebrow">AI-DRIVEN FLASH-FLOOD EARLY WARNING</p>
+          <h1>PRAVAH</h1>
+          <p className="landing-lede">A live intelligence platform for anticipating rainfall-driven flood risk across the Maharashtra Western Ghats.</p>
+          <div className="landing-facts"><span><b>20</b> monitored catchments</span><span><b>6</b> calibrated ML models</span><span><b>1964–2020</b> historical replay</span></div>
+          <button className="landing-enter" onClick={onEnter}>Enter operations console <ChevronRight size={18} /></button>
+        </div>
+        <div className="globe-stage" aria-label="Rotating globe representing the monitored Western Ghats region">
+          <div className="globe-halo halo-one" /><div className="globe-halo halo-two" />
+          <div className="globe"><div className="globe-longitude longitude-one" /><div className="globe-longitude longitude-two" /><div className="globe-latitude latitude-one" /><div className="globe-latitude latitude-two" /><div className="globe-latitude latitude-three" /><span className="globe-point point-one" /><span className="globe-point point-two" /><span className="globe-point point-three" /></div>
+          <div className="globe-caption"><span className="live-dot" /> WESTERN GHATS / INDIA</div>
+        </div>
+      </section>
+      <footer className="landing-footer"><span>PRECIPITATION · CATCHMENTS · MODELS · ALERTS</span><span>BUILD 1.0 / LIVE SYSTEM</span></footer>
+    </main>
+  )
+}
+
 function App() {
   const [stations, setStations] = useState<Station[]>([])
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null)
@@ -53,6 +77,7 @@ function App() {
   const [apiOnline, setApiOnline] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>({ enabled: false, configured_channels: [] })
+  const [showLanding, setShowLanding] = useState(true)
 
   const selected = stations.find((station) => station.gauge_id === selectedGauge)
   const filteredStations = useMemo(() => stations.filter((station) => `${station.station_name} ${station.gauge_id} ${station.river} ${station.basin}`.toLowerCase().includes(query.toLowerCase())), [stations, query])
@@ -125,6 +150,8 @@ function App() {
     const isSelected = id === selectedGauge || id.endsWith(selectedGauge)
     return { color: isSelected ? '#f4f7f4' : '#4a736c', weight: isSelected ? 3 : 1.5, fillColor: isSelected ? '#d86b49' : '#398f80', fillOpacity: isSelected ? 0.75 : 0.32 }
   }
+
+  if (showLanding) return <LandingPage onEnter={() => setShowLanding(false)} />
 
   return (
     <div className="app-shell">
