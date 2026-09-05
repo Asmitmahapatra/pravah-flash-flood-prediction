@@ -9,6 +9,7 @@ import './App.css'
 type Tier = 'EMERGENCY' | 'WARNING' | 'ADVISORY' | 'NORMAL'
 type Station = { gauge_id: string; station_name: string; river: string; basin: string; latitude: number; longitude: number; warning_level_m: number; danger_level_m: number }
 type Prediction = { status: string; station: Station; alert_tier: { tier: Tier; color: string; recommendation: string }; task_a_onset: { model_used: string; probability: number; threshold: number; is_flood_onset_predicted: boolean }; task_b_active: { model_used: string; probability: number; threshold: number; is_active_flood_predicted: boolean }; antecedent_rainfall_summary: { rain_1d_mm: number; rain_3d_sum_mm: number; rain_7d_sum_mm: number; rain_10d_sum_mm: number } }
+type FleetPrediction = { status: string; total: number; results: Prediction[] }
 type Historical = { date: string; total_stations_active: number; emergency_count: number; warning_count: number; advisory_count: number; normal_count: number; catchments: Array<{ gauge_id: string; station_name: string; river: string; alert_tier: Tier; onset_probability: number; active_probability: number }> }
 type AlertRecord = { id: string; tier: Tier; gaugeId: string; stationName: string; probability: number; activeProbability: number; recommendation: string; createdAt: string; acknowledged: boolean }
 type ApiAlert = { id: string; tier: Tier; gauge_id: string; station_name: string; probability: number; active_probability: number; recommendation: string; created_at: string; acknowledged: boolean }
@@ -157,6 +158,7 @@ function App() {
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null)
   const [selectedGauge, setSelectedGauge] = useState('684')
   const [prediction, setPrediction] = useState<Prediction | null>(null)
+  const [fleetPrediction, setFleetPrediction] = useState<FleetPrediction | null>(null)
   const [historical, setHistorical] = useState<Historical | null>(null)
   const [rainfall, setRainfall] = useState(rainfallPresets['Moderate monsoon'])
   const [preset, setPreset] = useState('Moderate monsoon')
@@ -201,9 +203,14 @@ function App() {
   const runForecast = async () => {
     setForecastLoading(true); setError('')
     try {
-      const response = await fetch(`${API}/api/v1/predict/live`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gauge_id: selectedGauge, rainfall_history_10d: rainfall, onset_model: onsetModel, active_model: activeModel }) })
+      const payload = { gauge_id: selectedGauge, rainfall_history_10d: rainfall, onset_model: onsetModel, active_model: activeModel }
+      const [response, fleetResponse] = await Promise.all([
+        fetch(`${API}/api/v1/predict/live`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+        fetch(`${API}/api/v1/predict/live/fleet`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+      ])
       if (!response.ok) throw new Error((await response.json()).detail ?? 'Forecast request failed')
       setPrediction(await response.json() as Prediction)
+      if (fleetResponse.ok) setFleetPrediction(await fleetResponse.json() as FleetPrediction)
       await loadAlerts()
       setApiOnline(true)
       setLastRefresh(new Date())
@@ -238,7 +245,8 @@ function App() {
   }, [selectedGauge, onsetModel, activeModel, rainfall, view, forecastLoading])
 
   const riskTier = prediction?.alert_tier.tier ?? 'NORMAL'
-  const riskCounts = historical ? { EMERGENCY: historical.emergency_count, WARNING: historical.warning_count, ADVISORY: historical.advisory_count, NORMAL: historical.normal_count } : { EMERGENCY: 0, WARNING: 0, ADVISORY: 0, NORMAL: 0 }
+  const fleetRiskCounts = fleetPrediction?.results.reduce((counts, result) => { counts[result.alert_tier.tier] += 1; return counts }, { EMERGENCY: 0, WARNING: 0, ADVISORY: 0, NORMAL: 0 } as Record<Tier, number>)
+  const riskCounts = historical ? { EMERGENCY: historical.emergency_count, WARNING: historical.warning_count, ADVISORY: historical.advisory_count, NORMAL: historical.normal_count } : fleetRiskCounts ?? { EMERGENCY: 0, WARNING: 0, ADVISORY: 0, NORMAL: 0 }
   const unreadAlerts = alerts.filter((alert) => !alert.acknowledged)
   const acknowledgeAlert = async (id: string) => { await fetch(`${API}/api/v1/alerts/${encodeURIComponent(id)}/acknowledge`, { method: 'POST' }); await loadAlerts() }
   const acknowledgeAll = async () => { await fetch(`${API}/api/v1/alerts/acknowledge-all`, { method: 'POST' }); await loadAlerts() }
@@ -246,7 +254,9 @@ function App() {
   const geoStyle = (feature?: Feature) => {
     const id = String(feature?.properties?.GaugeID ?? feature?.properties?.gauge_id ?? '')
     const isSelected = id === selectedGauge || id.endsWith(selectedGauge)
-    return { color: isSelected ? '#f4f7f4' : '#4a736c', weight: isSelected ? 3 : 1.5, fillColor: isSelected ? '#d86b49' : '#398f80', fillOpacity: isSelected ? 0.75 : 0.32 }
+    const tier = fleetPrediction?.results.find((result) => result.station.gauge_id === id)?.alert_tier.tier
+    const fillColors: Record<Tier, string> = { EMERGENCY: '#d9544d', WARNING: '#d8784f', ADVISORY: '#c6a24d', NORMAL: '#398f80' }
+    return { color: isSelected ? '#f4f7f4' : '#4a736c', weight: isSelected ? 3 : 1.5, fillColor: isSelected ? '#d86b49' : fillColors[tier ?? 'NORMAL'], fillOpacity: isSelected ? 0.82 : 0.48 }
   }
 
   if (showLanding) return <LandingPage onEnter={() => setShowLanding(false)} />

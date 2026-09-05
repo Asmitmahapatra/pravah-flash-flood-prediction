@@ -218,6 +218,25 @@ def predict_live_rainfall(request: LivePredictionRequest) -> LivePredictionRespo
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
+@app.post("/api/v1/predict/live/fleet", tags=["Inference"])
+def predict_live_fleet(request: LivePredictionRequest) -> Dict[str, Any]:
+    """Score all registered catchments for a shared live rainfall scenario."""
+    results = []
+    for gauge_id in engine.registered_gauges:
+        try:
+            results.append(
+                engine.predict_live(
+                    gauge_id=gauge_id,
+                    rainfall_history_10d=request.rainfall_history_10d,
+                    onset_model_name=request.onset_model or "RandomForest",
+                    active_model_name=request.active_model or "XGBoost",
+                )
+            )
+        except Exception as exc:
+            logger.warning("Fleet prediction skipped gauge %s: %s", gauge_id, exc)
+    return {"status": "success", "total": len(results), "results": results}
+
+
 @app.get("/api/v1/predict/historical/{date}", response_model=HistoricalDateResponse, tags=["Simulation"])
 def predict_historical_date(
     date: str,

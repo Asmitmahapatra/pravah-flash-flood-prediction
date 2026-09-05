@@ -115,6 +115,19 @@ class PravahInferenceAndApiTests(unittest.TestCase):
         self.assertIn("alert_tier", data)
         self.assertIn("probability", data["task_a_onset"])
 
+    def test_api_live_fleet_prediction_endpoint(self):
+        payload = {
+            "gauge_id": "684",
+            "rainfall_history_10d": [0.0, 5.0, 10.0, 15.0, 20.0, 30.0, 50.0, 80.0, 90.0, 75.0],
+            "onset_model": "RandomForest",
+            "active_model": "XGBoost",
+        }
+        response = self.client.post("/api/v1/predict/live/fleet", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["total"], 20)
+        self.assertEqual(len(data["results"]), 20)
+
     def test_api_historical_simulation_endpoint(self):
         response = self.client.get("/api/v1/predict/historical/2019-08-04")
         self.assertEqual(response.status_code, 200)

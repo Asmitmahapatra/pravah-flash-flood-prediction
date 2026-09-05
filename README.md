@@ -98,6 +98,8 @@ POST /api/v1/alerts/{alert_id}/acknowledge
 POST /api/v1/alerts/acknowledge-all
 ```
 
+Fleet-wide live scoring is available at `POST /api/v1/predict/live/fleet`; it returns a real model result for every registered catchment so the map and risk counters can reflect the whole network.
+
 Alerts are stored in a local SQLite database under `data/runtime/` and ignored by Git. The React dashboard refreshes live inference every 60 seconds, shows API connection state, and reads model benchmark metadata from `/api/v1/models/summary`.
 
 External delivery is opt-in. Set `PRAVAH_NOTIFICATIONS_ENABLED=true` and configure one or more channels:
