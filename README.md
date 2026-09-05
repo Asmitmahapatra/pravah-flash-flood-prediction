@@ -100,6 +100,24 @@ POST /api/v1/alerts/acknowledge-all
 
 Alerts are stored in a local SQLite database under `data/runtime/` and ignored by Git. The React dashboard refreshes live inference every 60 seconds, shows API connection state, and reads model benchmark metadata from `/api/v1/models/summary`.
 
+External delivery is opt-in. Set `PRAVAH_NOTIFICATIONS_ENABLED=true` and configure one or more channels:
+
+```text
+PRAVAH_ALERT_WEBHOOK_URL=https://example.invalid/pravah-alerts
+PRAVAH_SMTP_HOST=smtp.example.com
+PRAVAH_SMTP_PORT=587
+PRAVAH_SMTP_USER=...
+PRAVAH_SMTP_PASSWORD=...
+PRAVAH_ALERT_EMAIL_FROM=alerts@example.com
+PRAVAH_ALERT_EMAIL_TO=operator@example.com
+PRAVAH_TWILIO_ACCOUNT_SID=...
+PRAVAH_TWILIO_AUTH_TOKEN=...
+PRAVAH_TWILIO_FROM=+10000000000
+PRAVAH_TWILIO_TO=+10000000001
+```
+
+The webhook receives JSON alert events. The Twilio channel supports SMS or WhatsApp addresses, depending on the configured `From` and `To` values. Check configured channels through `GET /api/v1/notifications/status`; credentials are never returned by that endpoint.
+
 ### 1. Launching the Interactive Web Dashboard:
 ```bash
 streamlit run src/dashboard/app.py

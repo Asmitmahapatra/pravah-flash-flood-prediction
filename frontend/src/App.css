@@ -1,5 +1,6 @@
  .network-status b.offline { color: var(--coral); }
  .offline-dot { background: var(--coral); box-shadow: 0 0 0 4px rgba(219,116,85,.12); }
+ .network-status small.notify-ready { color: var(--teal); }
  .alert-anchor { position: relative; }
  .alert-trigger { position: relative; }
  .alert-trigger span { position: absolute; top: 0; right: 0; min-width: 15px; height: 15px; padding: 0 3px; display: grid; place-items: center; border-radius: 8px; background: var(--coral); color: #fff; font: 8px 'DM Mono', monospace; }

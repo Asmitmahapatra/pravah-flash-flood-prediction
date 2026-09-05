@@ -19,6 +19,7 @@ from src.api.schemas import (
     AlertRecord,
 )
 from src.inference.predictor import PravahInferenceEngine, clean_gauge_id
+from src.api.notifications import dispatch_alert, get_notification_status
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("pravah.api")
@@ -62,9 +63,9 @@ def _alert_from_row(row: sqlite3.Row) -> AlertRecord:
     )
 
 
-def _save_alert(alert: AlertRecord) -> None:
+def _save_alert(alert: AlertRecord) -> bool:
     with sqlite3.connect(ALERT_DB_PATH) as connection:
-        connection.execute(
+        result = connection.execute(
             """
             INSERT OR IGNORE INTO alerts
             (id, tier, gauge_id, station_name, probability, active_probability, recommendation, created_at, acknowledged)
@@ -82,6 +83,7 @@ def _save_alert(alert: AlertRecord) -> None:
                 int(alert.acknowledged),
             ),
         )
+    return result.rowcount == 1
 
 
 def _read_alerts(include_acknowledged: bool = True) -> List[AlertRecord]:
@@ -196,18 +198,18 @@ def predict_live_rainfall(request: LivePredictionRequest) -> LivePredictionRespo
                 f"{response.task_a_onset['probability']:.4f}:"
                 f"{response.task_b_active['probability']:.4f}"
             )
-            _save_alert(
-                AlertRecord(
-                    id=alert_id,
-                    tier=tier,
-                    gauge_id=response.station.gauge_id,
-                    station_name=response.station.station_name,
-                    probability=float(response.task_a_onset["probability"]),
-                    active_probability=float(response.task_b_active["probability"]),
-                    recommendation=response.alert_tier.recommendation,
-                    created_at=datetime.now(timezone.utc),
-                )
+            alert = AlertRecord(
+                id=alert_id,
+                tier=tier,
+                gauge_id=response.station.gauge_id,
+                station_name=response.station.station_name,
+                probability=float(response.task_a_onset["probability"]),
+                active_probability=float(response.task_b_active["probability"]),
+                recommendation=response.alert_tier.recommendation,
+                created_at=datetime.now(timezone.utc),
             )
+            if _save_alert(alert):
+                dispatch_alert(alert)
         return response
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -243,6 +245,12 @@ def predict_historical_date(
 def get_models_benchmark_summary() -> Dict[str, Any]:
     """Retrieve comprehensive Phase 3 performance benchmarks and top feature importances."""
     return engine.get_models_summary()
+
+
+@app.get("/api/v1/notifications/status", tags=["Alerts"])
+def get_notifications_status() -> Dict[str, Any]:
+    """Return configured notification channels without exposing credentials."""
+    return get_notification_status()
 
 
 @app.get("/api/v1/alerts", response_model=List[AlertRecord], tags=["Alerts"])

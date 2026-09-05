@@ -130,6 +130,14 @@ class PravahInferenceAndApiTests(unittest.TestCase):
         self.assertIn("task_a_onset", data)
         self.assertIn("task_b_active", data)
 
+    def test_api_notifications_status_endpoint(self):
+        response = self.client.get("/api/v1/notifications/status")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("enabled", data)
+        self.assertIn("channels", data)
+        self.assertNotIn("smtp_password", data)
+
     def test_api_alert_lifecycle(self):
         payload = {
             "gauge_id": "684",

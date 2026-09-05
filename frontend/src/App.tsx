@@ -13,6 +13,7 @@ type AlertRecord = { id: string; tier: Tier; gaugeId: string; stationName: strin
 type ApiAlert = { id: string; tier: Tier; gauge_id: string; station_name: string; probability: number; active_probability: number; recommendation: string; created_at: string; acknowledged: boolean }
 type ModelMetric = { roc_auc: number; threshold: number; precision: number; recall: number; f1: number }
 type ModelSummary = { task_a_onset?: Record<string, ModelMetric>; task_b_active?: Record<string, ModelMetric> }
+type NotificationStatus = { enabled: boolean; configured_channels: string[] }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const tiers: Tier[] = ['EMERGENCY', 'WARNING', 'ADVISORY', 'NORMAL']
@@ -51,6 +52,7 @@ function App() {
   const [modelSummary, setModelSummary] = useState<ModelSummary>({})
   const [apiOnline, setApiOnline] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>({ enabled: false, configured_channels: [] })
 
   const selected = stations.find((station) => station.gauge_id === selectedGauge)
   const filteredStations = useMemo(() => stations.filter((station) => `${station.station_name} ${station.gauge_id} ${station.river} ${station.basin}`.toLowerCase().includes(query.toLowerCase())), [stations, query])
@@ -58,11 +60,12 @@ function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [catchmentResponse, healthResponse, modelResponse] = await Promise.all([fetch(`${API}/api/v1/catchments`), fetch(`${API}/health`), fetch(`${API}/api/v1/models/summary` )])
+        const [catchmentResponse, healthResponse, modelResponse, notificationResponse] = await Promise.all([fetch(`${API}/api/v1/catchments`), fetch(`${API}/health`), fetch(`${API}/api/v1/models/summary`), fetch(`${API}/api/v1/notifications/status` )])
         if (!catchmentResponse.ok) throw new Error('FastAPI service is not responding')
         const data = await catchmentResponse.json() as FeatureCollection
         setApiOnline(healthResponse.ok)
         if (modelResponse.ok) setModelSummary(await modelResponse.json() as ModelSummary)
+        if (notificationResponse.ok) setNotificationStatus(await notificationResponse.json() as NotificationStatus)
         setGeojson(data)
         setStations((data.features ?? []).map((feature) => feature.properties as Station).sort((a, b) => a.gauge_id.localeCompare(b.gauge_id)))
         setLastRefresh(new Date())
@@ -135,7 +138,7 @@ function App() {
           <button className={view === 'models' ? 'active' : ''} onClick={() => { setView('models'); setMobileNav(false) }}><BarChart3 size={17} /> Model performance <span>03</span></button>
         </nav>
         <p className="nav-label">NETWORK</p>
-        <div className="network-status"><div><Radio size={15} /><span>Inference API</span></div><b className={apiOnline ? '' : 'offline'}>{apiOnline ? 'ONLINE' : 'OFFLINE'}</b><small>{modelSummary.task_a_onset ? Object.keys(modelSummary.task_a_onset).length * 2 : 6} models · {stations.length || 20} gauges</small></div>
+        <div className="network-status"><div><Radio size={15} /><span>Inference API</span></div><b className={apiOnline ? '' : 'offline'}>{apiOnline ? 'ONLINE' : 'OFFLINE'}</b><small>{modelSummary.task_a_onset ? Object.keys(modelSummary.task_a_onset).length * 2 : 6} models · {stations.length || 20} gauges</small><small className={notificationStatus.enabled ? 'notify-ready' : ''}>Delivery: {notificationStatus.enabled ? notificationStatus.configured_channels.join(', ') || 'enabled' : 'in-app only'}</small></div>
         <div className="sidebar-bottom"><ShieldCheck size={16} /><span>Validated data pipeline</span></div>
       </aside>
 
