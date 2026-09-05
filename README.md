@@ -90,6 +90,16 @@ npm run dev
 
 Open `http://localhost:5173/`. The original Streamlit dashboard remains available with the command below for notebook-style exploration.
 
+The FastAPI service also provides persistent operator alerts:
+
+```text
+GET  /api/v1/alerts
+POST /api/v1/alerts/{alert_id}/acknowledge
+POST /api/v1/alerts/acknowledge-all
+```
+
+Alerts are stored in a local SQLite database under `data/runtime/` and ignored by Git. The React dashboard refreshes live inference every 60 seconds, shows API connection state, and reads model benchmark metadata from `/api/v1/models/summary`.
+
 ### 1. Launching the Interactive Web Dashboard:
 ```bash
 streamlit run src/dashboard/app.py

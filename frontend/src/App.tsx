@@ -11,6 +11,8 @@ type Prediction = { status: string; station: Station; alert_tier: { tier: Tier; 
 type Historical = { date: string; total_stations_active: number; emergency_count: number; warning_count: number; advisory_count: number; normal_count: number; catchments: Array<{ gauge_id: string; station_name: string; river: string; alert_tier: Tier; onset_probability: number; active_probability: number }> }
 type AlertRecord = { id: string; tier: Tier; gaugeId: string; stationName: string; probability: number; activeProbability: number; recommendation: string; createdAt: string; acknowledged: boolean }
 type ApiAlert = { id: string; tier: Tier; gauge_id: string; station_name: string; probability: number; active_probability: number; recommendation: string; created_at: string; acknowledged: boolean }
+type ModelMetric = { roc_auc: number; threshold: number; precision: number; recall: number; f1: number }
+type ModelSummary = { task_a_onset?: Record<string, ModelMetric>; task_b_active?: Record<string, ModelMetric> }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const tiers: Tier[] = ['EMERGENCY', 'WARNING', 'ADVISORY', 'NORMAL']
@@ -46,6 +48,9 @@ function App() {
   const [mobileNav, setMobileNav] = useState(false)
   const [alerts, setAlerts] = useState<AlertRecord[]>([])
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [modelSummary, setModelSummary] = useState<ModelSummary>({})
+  const [apiOnline, setApiOnline] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   const selected = stations.find((station) => station.gauge_id === selectedGauge)
   const filteredStations = useMemo(() => stations.filter((station) => `${station.station_name} ${station.gauge_id} ${station.river} ${station.basin}`.toLowerCase().includes(query.toLowerCase())), [stations, query])
@@ -53,11 +58,14 @@ function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [catchmentResponse] = await Promise.all([fetch(`${API}/api/v1/catchments`), fetch(`${API}/health` )])
+        const [catchmentResponse, healthResponse, modelResponse] = await Promise.all([fetch(`${API}/api/v1/catchments`), fetch(`${API}/health`), fetch(`${API}/api/v1/models/summary` )])
         if (!catchmentResponse.ok) throw new Error('FastAPI service is not responding')
         const data = await catchmentResponse.json() as FeatureCollection
+        setApiOnline(healthResponse.ok)
+        if (modelResponse.ok) setModelSummary(await modelResponse.json() as ModelSummary)
         setGeojson(data)
         setStations((data.features ?? []).map((feature) => feature.properties as Station).sort((a, b) => a.gauge_id.localeCompare(b.gauge_id)))
+        setLastRefresh(new Date())
       } catch (err) { setError(err instanceof Error ? err.message : 'Unable to reach the PRAVAH API') }
       finally { setLoading(false) }
     }
@@ -71,6 +79,8 @@ function App() {
       if (!response.ok) throw new Error((await response.json()).detail ?? 'Forecast request failed')
       setPrediction(await response.json() as Prediction)
       await loadAlerts()
+      setApiOnline(true)
+      setLastRefresh(new Date())
     } catch (err) { setError(err instanceof Error ? err.message : 'Forecast failed') }
     finally { setForecastLoading(false) }
   }
@@ -81,6 +91,7 @@ function App() {
       const response = await fetch(`${API}/api/v1/predict/historical/${historyDate}?onset_model=${onsetModel}&active_model=${activeModel}`)
       if (!response.ok) throw new Error((await response.json()).detail ?? 'Historical replay failed')
       setHistorical(await response.json() as Historical)
+      setLastRefresh(new Date())
     } catch (err) { setError(err instanceof Error ? err.message : 'Historical replay failed') }
     finally { setForecastLoading(false) }
   }
@@ -95,6 +106,10 @@ function App() {
   useEffect(() => { void loadAlerts() }, [])
   useEffect(() => { if (!loading && stations.length) void runForecast() }, [loading, stations.length])
   useEffect(() => { if (preset !== 'Custom') setRainfall(rainfallPresets[preset]) }, [preset])
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => { if (!forecastLoading && view === 'live') void runForecast() }, 60000)
+    return () => window.clearInterval(refreshTimer)
+  }, [selectedGauge, onsetModel, activeModel, rainfall, view, forecastLoading])
 
   const riskTier = prediction?.alert_tier.tier ?? 'NORMAL'
   const riskCounts = historical ? { EMERGENCY: historical.emergency_count, WARNING: historical.warning_count, ADVISORY: historical.advisory_count, NORMAL: historical.normal_count } : { EMERGENCY: 0, WARNING: 0, ADVISORY: 0, NORMAL: 0 }
@@ -120,12 +135,12 @@ function App() {
           <button className={view === 'models' ? 'active' : ''} onClick={() => { setView('models'); setMobileNav(false) }}><BarChart3 size={17} /> Model performance <span>03</span></button>
         </nav>
         <p className="nav-label">NETWORK</p>
-        <div className="network-status"><div><Radio size={15} /><span>Inference API</span></div><b>ONLINE</b><small>6 models · {stations.length || 20} gauges</small></div>
+        <div className="network-status"><div><Radio size={15} /><span>Inference API</span></div><b className={apiOnline ? '' : 'offline'}>{apiOnline ? 'ONLINE' : 'OFFLINE'}</b><small>{modelSummary.task_a_onset ? Object.keys(modelSummary.task_a_onset).length * 2 : 6} models · {stations.length || 20} gauges</small></div>
         <div className="sidebar-bottom"><ShieldCheck size={16} /><span>Validated data pipeline</span></div>
       </aside>
 
       <main className="main-content">
-        <header className="topbar"><button className="icon-button menu-trigger" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={20} /></button><div className="crumb"><span>PRAVAH</span><ChevronRight size={14} /><b>{view === 'live' ? 'Live operations' : view === 'history' ? 'Historical replay' : 'Model performance'}</b></div><div className="top-actions"><span className="last-sync"><span className="live-dot" /> Systems nominal</span><button className="icon-button" onClick={() => view === 'history' ? void runHistory() : void runForecast()} aria-label="Refresh data"><RefreshCw size={17} className={forecastLoading ? 'spin' : ''} /></button><div className="alert-anchor"><button className={unreadAlerts.length ? 'icon-button alert-trigger has-alerts' : 'icon-button alert-trigger'} onClick={() => setAlertsOpen((open) => !open)} aria-label="Open alerts"><Bell size={18} /><span>{unreadAlerts.length}</span></button>{alertsOpen && <div className="alert-drawer"><div className="alert-drawer-head"><div><p className="eyebrow">OPERATOR ALERTS</p><h3>{unreadAlerts.length ? `${unreadAlerts.length} require attention` : 'No unread alerts'}</h3></div><button className="text-button" onClick={acknowledgeAll} disabled={!unreadAlerts.length}>Acknowledge all</button></div>{alerts.length ? <div className="alert-list">{alerts.map((alert) => <div className={alert.acknowledged ? 'alert-item acknowledged' : 'alert-item'} key={alert.id}><div className={`alert-severity ${tierClass[alert.tier]}`}><AlertTriangle size={14} /></div><div className="alert-copy"><div><b>{alert.tier}</b><span>Gauge {alert.gaugeId} · {alert.stationName}</span></div><p>{alert.recommendation}</p><small><Clock3 size={11} /> {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · onset {(alert.probability * 100).toFixed(1)}% · active {(alert.activeProbability * 100).toFixed(1)}%</small></div>{!alert.acknowledged && <button className="ack-button" onClick={() => acknowledgeAlert(alert.id)} aria-label={`Acknowledge ${alert.tier} alert`}><Check size={15} /></button>}</div>)}</div> : <div className="empty-alerts"><Bell size={20} /><p>Alerts will appear here when a live model crosses its calibrated risk tier.</p></div>}</div>}</div><div className="avatar">AK</div></div></header>
+        <header className="topbar"><button className="icon-button menu-trigger" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={20} /></button><div className="crumb"><span>PRAVAH</span><ChevronRight size={14} /><b>{view === 'live' ? 'Live operations' : view === 'history' ? 'Historical replay' : 'Model performance'}</b></div><div className="top-actions"><span className="last-sync"><span className={apiOnline ? 'live-dot' : 'live-dot offline-dot'} /> {lastRefresh ? `Updated ${lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Connecting to API'}</span><button className="icon-button" onClick={() => view === 'history' ? void runHistory() : void runForecast()} aria-label="Refresh data"><RefreshCw size={17} className={forecastLoading ? 'spin' : ''} /></button><div className="alert-anchor"><button className={unreadAlerts.length ? 'icon-button alert-trigger has-alerts' : 'icon-button alert-trigger'} onClick={() => setAlertsOpen((open) => !open)} aria-label="Open alerts"><Bell size={18} /><span>{unreadAlerts.length}</span></button>{alertsOpen && <div className="alert-drawer"><div className="alert-drawer-head"><div><p className="eyebrow">OPERATOR ALERTS</p><h3>{unreadAlerts.length ? `${unreadAlerts.length} require attention` : 'No unread alerts'}</h3></div><button className="text-button" onClick={() => void acknowledgeAll()} disabled={!unreadAlerts.length}>Acknowledge all</button></div>{alerts.length ? <div className="alert-list">{alerts.map((alert) => <div className={alert.acknowledged ? 'alert-item acknowledged' : 'alert-item'} key={alert.id}><div className={`alert-severity ${tierClass[alert.tier]}`}><AlertTriangle size={14} /></div><div className="alert-copy"><div><b>{alert.tier}</b><span>Gauge {alert.gaugeId} · {alert.stationName}</span></div><p>{alert.recommendation}</p><small><Clock3 size={11} /> {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · onset {(alert.probability * 100).toFixed(1)}% · active {(alert.activeProbability * 100).toFixed(1)}%</small></div>{!alert.acknowledged && <button className="ack-button" onClick={() => void acknowledgeAlert(alert.id)} aria-label={`Acknowledge ${alert.tier} alert`}><Check size={15} /></button>}</div>)}</div> : <div className="empty-alerts"><Bell size={20} /><p>Alerts will appear here when a live model crosses its calibrated risk tier.</p></div>}</div>}</div><div className="avatar">AK</div></div></header>
 
         <section className="page-intro"><div><p className="eyebrow">MONSOON WATCH · 05 SEP 2026</p><h1>{view === 'live' ? 'Live catchment operations' : view === 'history' ? 'Replay a flood day' : 'Model performance'}</h1><p className="intro-copy">A decision surface for rainfall, catchment saturation, and early warning across Maharashtra's Western Ghats.</p></div><div className="intro-meta"><span>UTC +05:30</span><strong>20</strong><small>target catchments</small></div></section>
         {error && <div className="error-strip"><AlertTriangle size={17} /> {error}<button onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></button></div>}
@@ -142,7 +157,7 @@ function App() {
 
         {view === 'history' && <section className="history-layout"><div className="panel history-toolbar"><div><p className="eyebrow">EVENT REPLAY</p><h2>Step into the archive</h2><p>Run the production models against a recorded day and compare every catchment.</p></div><div className="history-controls"><label>Date<input type="date" value={historyDate} onChange={(event) => setHistoryDate(event.target.value)} /></label><button className="primary-button" onClick={() => void runHistory()} disabled={forecastLoading}><RefreshCw size={17} /> Replay date</button></div></div>{historical && <><div className="signal-grid history-signals">{tiers.map((tier) => <div className={`signal ${tierClass[tier]}`} key={tier}><span className="signal-kicker">{tier}</span><strong>{riskCounts[tier]}</strong><span className="signal-label">catchments</span></div>)}</div><div className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">CATCHMENT OUTCOMES</p><h2>{historical.date}</h2></div><span className="unit-label">{historical.total_stations_active} active records</span></div><div className="table-scroll"><table><thead><tr><th>Catchment</th><th>River</th><th>Tier</th><th>Onset probability</th><th>Active probability</th></tr></thead><tbody>{historical.catchments.map((item) => <tr key={item.gauge_id} onClick={() => { setSelectedGauge(item.gauge_id); setView('live') }}><td><b>{item.station_name}</b><small>Gauge {item.gauge_id}</small></td><td>{item.river}</td><td><span className={`tier-pill ${tierClass[item.alert_tier]}`}>{item.alert_tier}</span></td><td>{(item.onset_probability * 100).toFixed(1)}%</td><td>{(item.active_probability * 100).toFixed(1)}%</td></tr>)}</tbody></table></div></div></>}</section>}
 
-        {view === 'models' && <section className="models-layout"><div className="panel model-hero"><div><p className="eyebrow">MODEL GOVERNANCE</p><h2>Every score has a provenance</h2><p>The frontend displays the exact serialized model selected for each inference call, including its calibrated decision threshold.</p></div><div className="model-badge"><SlidersHorizontal size={20} /><b>6</b><span>artifacts loaded</span></div></div><div className="model-cards"><div className="panel model-card"><span className="model-number">01</span><p className="eyebrow">TASK A · ONSET</p><h3>Flood onset classifier</h3><div className="model-score"><strong>0.8384</strong><span>ROC-AUC<br />test set</span></div><div className="model-row"><span>RandomForest</span><b>0.8384</b></div><div className="model-row"><span>XGBoost</span><b>0.7935</b></div><div className="model-row"><span>LightGBM</span><b>0.8102</b></div></div><div className="panel model-card accent-card"><span className="model-number">02</span><p className="eyebrow">TASK B · ACTIVE STATE</p><h3>Active flood classifier</h3><div className="model-score"><strong>0.7552</strong><span>ROC-AUC<br />test set</span></div><div className="model-row"><span>LightGBM</span><b>0.7552</b></div><div className="model-row"><span>XGBoost</span><b>0.6744</b></div><div className="model-row"><span>RandomForest</span><b>0.7036</b></div></div></div></section>}
+        {view === 'models' && <section className="models-layout"><div className="panel model-hero"><div><p className="eyebrow">MODEL GOVERNANCE</p><h2>Every score has a provenance</h2><p>The frontend displays the exact serialized model selected for each inference call, including its calibrated decision threshold.</p></div><div className="model-badge"><SlidersHorizontal size={20} /><b>{Object.keys(modelSummary.task_a_onset ?? {}).length + Object.keys(modelSummary.task_b_active ?? {}).length || 6}</b><span>artifacts loaded</span></div></div><div className="model-cards"><div className="panel model-card"><span className="model-number">01</span><p className="eyebrow">TASK A · ONSET</p><h3>Flood onset classifier</h3><div className="model-score"><strong>0.8384</strong><span>ROC-AUC<br />test set</span></div><div className="model-row"><span>RandomForest</span><b>0.8384</b></div><div className="model-row"><span>XGBoost</span><b>0.7935</b></div><div className="model-row"><span>LightGBM</span><b>0.8102</b></div></div><div className="panel model-card accent-card"><span className="model-number">02</span><p className="eyebrow">TASK B · ACTIVE STATE</p><h3>Active flood classifier</h3><div className="model-score"><strong>0.7552</strong><span>ROC-AUC<br />test set</span></div><div className="model-row"><span>LightGBM</span><b>0.7552</b></div><div className="model-row"><span>XGBoost</span><b>0.6744</b></div><div className="model-row"><span>RandomForest</span><b>0.7036</b></div></div></div></section>}
       </main>
     </div>
   )
