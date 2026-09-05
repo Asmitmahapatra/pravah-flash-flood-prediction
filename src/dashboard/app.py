@@ -1,16 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import base64
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
 import folium
-from folium.plugins import Fullscreen
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
@@ -19,8 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.live_weather import get_live_rainfall_for_station
 from src.inference.predictor import PravahInferenceEngine, clean_gauge_id
+from src.live_weather import get_live_rainfall_for_station
 
 st.set_page_config(
     page_title="PRAVAH — Flash-Flood Early Warning Dashboard",
@@ -29,19 +28,28 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- LOGO HELPER ---
 LOGO_PATH = REPO_ROOT / "src" / "dashboard" / "assets" / "pravah_logo.svg"
+ALERT_COLOR_MAP = {
+    "NORMAL": "#2ecc71",
+    "ADVISORY": "#f1c40f",
+    "WARNING": "#e67e22",
+    "EMERGENCY": "#e74c3c",
+}
+ALERT_EMOJI_MAP = {
+    "NORMAL": "🟢 Normal",
+    "ADVISORY": "🟡 Advisory",
+    "WARNING": "🟠 Warning",
+    "EMERGENCY": "🔴 Emergency",
+}
+RISK_ORDER = ["EMERGENCY", "WARNING", "ADVISORY", "NORMAL"]
+PRESET_MAP = {
+    "Lull": {"one_day": 5.0, "three_day": 15.0, "seven_day": 30.0},
+    "Moderate": {"one_day": 35.0, "three_day": 80.0, "seven_day": 140.0},
+    "Heavy": {"one_day": 90.0, "three_day": 180.0, "seven_day": 340.0},
+    "Cloudburst": {"one_day": 220.0, "three_day": 420.0, "seven_day": 750.0},
+}
 
 
-def get_logo_html(width: int = 240) -> str:
-    if LOGO_PATH.exists():
-        svg_code = LOGO_PATH.read_text(encoding="utf-8")
-        b64 = base64.b64encode(svg_code.encode("utf-8")).decode("utf-8")
-        return f'<img src="data:image/svg+xml;base64,{b64}" width="{width}px" style="margin-bottom: 10px;" />'
-    return "<h2>🌊 PRAVAH</h2>"
-
-
-# --- CACHED RESOURCES ---
 @st.cache_resource
 def get_inference_engine() -> PravahInferenceEngine:
     return PravahInferenceEngine()
@@ -54,30 +62,155 @@ def get_catchments_geojson() -> Dict[str, Any]:
         return json.load(fh)
 
 
+def get_logo_html(width: int = 220) -> str:
+    if LOGO_PATH.exists():
+        svg_code = LOGO_PATH.read_text(encoding="utf-8")
+        b64 = base64.b64encode(svg_code.encode("utf-8")).decode("utf-8")
+        return f'<img src="data:image/svg+xml;base64,{b64}" width="{width}px" style="margin-bottom: 10px;" />'
+    return "<h2>🌊 PRAVAH</h2>"
+
+
+def validate_rainfall_inputs(one_day: float, three_day: float, seven_day: float) -> bool:
+    values = [float(one_day), float(three_day), float(seven_day)]
+    if any(np.isnan(v) or np.isinf(v) for v in values):
+        raise ValueError("Rainfall values must be finite numbers.")
+    if any(v < 0 for v in values):
+        raise ValueError("Rainfall values cannot be negative.")
+    if values[0] > 250.0:
+        raise ValueError("1-day rainfall cannot exceed 250 mm in the validated scenario range.")
+    if values[1] > 500.0:
+        raise ValueError("3-day rainfall cannot exceed 500 mm in the validated scenario range.")
+    if any(v > 1000 for v in values):
+        raise ValueError("Rainfall values cannot exceed 1000 mm.")
+    if values[0] > values[1]:
+        raise ValueError("1-day rainfall must be less than or equal to 3-day rainfall.")
+    if values[1] > values[2]:
+        raise ValueError("3-day rainfall must be less than or equal to 7-day rainfall.")
+    return True
+
+
+def build_10d_history_from_totals(one_day: float, three_day: float, seven_day: float) -> List[float]:
+    validate_rainfall_inputs(one_day, three_day, seven_day)
+    one_day = float(one_day)
+    three_day = float(three_day)
+    seven_day = float(seven_day)
+
+    history = [0.0] * 10
+    history[-1] = one_day
+
+    remaining_3 = max(0.0, three_day - one_day)
+    remaining_7 = max(0.0, seven_day - three_day)
+    if remaining_3 > 0:
+        history[-2] = remaining_3 * 0.6
+        history[-3] = remaining_3 - history[-2]
+    if remaining_7 > 0:
+        spread = remaining_7 / 7.0
+        for idx in range(7):
+            history[-7 + idx] += spread
+
+    if sum(history[-7:]) < seven_day:
+        history[-7] += (seven_day - sum(history[-7:]))
+    return [round(float(v), 3) for v in history]
+
+
+def get_station_search_fields(gauge_id: str) -> Dict[str, str]:
+    info = engine.get_station_info(gauge_id)
+    district = "Unknown"
+    meta_path = REPO_ROOT / "data" / "processed" / "target_metadata.csv"
+    if meta_path.exists():
+        meta_df = pd.read_csv(meta_path)
+        row = meta_df[meta_df["GaugeID"].map(clean_gauge_id) == clean_gauge_id(gauge_id)]
+        if not row.empty:
+            district = str(row.iloc[0].get("District", "Unknown"))
+    return {
+        "station_name": str(info.get("station_name", "Unknown")),
+        "gauge_id": str(gauge_id),
+        "river": str(info.get("river", "Unknown")),
+        "basin": str(info.get("basin", "Unknown")),
+        "district": district,
+    }
+
+
+def station_label(gauge_id: str) -> str:
+    info = engine.get_station_info(gauge_id)
+    return f"{gauge_id} — {info.get('station_name', 'Unknown')}"
+
+
+def build_live_map(selected_gauge: str, rainfall_history: List[float], onset_model: str, active_model: str):
+    m = folium.Map(location=[18.3, 74.3], zoom_start=7.5, tiles="CartoDB Positron", control_scale=True)
+    risk_by_gauge: Dict[str, str] = {}
+    for gauge in engine.registered_gauges:
+        result = engine.predict_live(
+            gauge_id=gauge,
+            rainfall_history_10d=rainfall_history,
+            onset_model_name=onset_model,
+            active_model_name=active_model,
+        )
+        risk_by_gauge[gauge] = result["alert_tier"]["tier"]
+
+    for feature in geojson_data.get("features", []):
+        gid = clean_gauge_id(feature.get("properties", {}).get("GaugeID", ""))
+        info = engine.get_station_info(gid)
+        tier = risk_by_gauge.get(gid, "NORMAL")
+        is_selected = clean_gauge_id(gid) == clean_gauge_id(selected_gauge)
+        fill_color = ALERT_COLOR_MAP.get(tier, "#2ecc71")
+
+        folium.GeoJson(
+            feature,
+            style_function=lambda x, selected=is_selected, color=fill_color: {
+                "fillColor": color,
+                "color": "#1b2430",
+                "weight": 3 if selected else 1.4,
+                "fillOpacity": 0.75 if selected else 0.45,
+            },
+            tooltip=(
+                f"<b>{info.get('station_name', 'Unknown')}</b><br>"
+                f"Gauge: {gid}<br>"
+                f"River: {info.get('river', 'Unknown')}<br>"
+                f"District: {get_station_search_fields(gid).get('district', 'Unknown')}<br>"
+                f"Tier: {tier}"
+            ),
+        ).add_to(m)
+
+        lat = float(info.get("latitude", 0.0))
+        lon = float(info.get("longitude", 0.0))
+        if lat and lon:
+            folium.CircleMarker(
+                location=[lat, lon],
+                radius=10 if is_selected else 7,
+                color="#ffffff" if not is_selected else "#111827",
+                weight=2,
+                fill=True,
+                fill_color=fill_color,
+                fill_opacity=1,
+                popup=(
+                    f"<b>{info.get('station_name', 'Unknown')}</b><br>"
+                    f"Gauge: {gid}<br>"
+                    f"River: {info.get('river', 'Unknown')}<br>"
+                    f"Tier: {tier}"
+                ),
+            ).add_to(m)
+            if tier in ["WARNING", "EMERGENCY"]:
+                folium.Circle(
+                    location=[lat, lon],
+                    radius=3800 if tier == "EMERGENCY" else 2400,
+                    color=fill_color,
+                    fill=True,
+                    fill_opacity=0.12,
+                    weight=1,
+                ).add_to(m)
+    return m
+
+
 engine = get_inference_engine()
 geojson_data = get_catchments_geojson()
 
-# --- COLOR MAPS ---
-ALERT_COLOR_MAP = {
-    "NORMAL": "#2ecc71",     # Green
-    "ADVISORY": "#f1c40f",   # Yellow
-    "WARNING": "#e67e22",    # Orange
-    "EMERGENCY": "#e74c3c",  # Red
-}
+if "last_refresh" not in st.session_state:
+    st.session_state.last_refresh = datetime.now()
 
-ALERT_EMOJI_MAP = {
-    "NORMAL": "🟢 Normal",
-    "ADVISORY": "🟡 Advisory",
-    "WARNING": "🟠 Warning",
-    "EMERGENCY": "🔴 Emergency",
-}
-
-
-# --- SIDEBAR ---
 with st.sidebar:
     st.markdown(get_logo_html(width=220), unsafe_allow_html=True)
     st.markdown("### ⚙️ Navigation & Controls")
-    
     selected_view = st.radio(
         "Select View",
         [
@@ -87,376 +220,236 @@ with st.sidebar:
             "🛰️ Catchment Geospatial Telemetry",
         ],
     )
-    
+
+    st.divider()
+    st.markdown("### 📍 Catchment Controls")
+    search_term = st.text_input("Search by station name, gauge ID, river, basin, or district")
+    gauge_options = engine.registered_gauges
+    if search_term:
+        needle = search_term.lower()
+        gauge_options = [
+            gauge for gauge in gauge_options
+            if any(needle in value.lower() for value in get_station_search_fields(gauge).values())
+        ]
+    if not gauge_options:
+        gauge_options = engine.registered_gauges
+    selected_gauge = st.selectbox("Station / Catchment", gauge_options, format_func=station_label, index=0)
+    risk_filter = st.selectbox("Risk-tier filter", ["ALL", "EMERGENCY", "WARNING", "ADVISORY", "NORMAL"])
+    selected_date = st.date_input("Historical date", value=datetime(2019, 8, 5).date())
+
+    st.divider()
+    st.markdown("### 🌧️ Manual Rainfall Inputs")
+    rainfall_mode = st.radio("Mode", ["Manual Simulation", "Live Weather"], index=0)
+    one_day = st.number_input("1-day rainfall (mm)", min_value=0.0, max_value=1000.0, value=35.0, step=1.0)
+    three_day = st.number_input("3-day cumulative (mm)", min_value=0.0, max_value=1000.0, value=80.0, step=1.0)
+    seven_day = st.number_input("7-day cumulative (mm)", min_value=0.0, max_value=1000.0, value=140.0, step=1.0)
+    preset_name = st.selectbox("Preset", ["Custom", *list(PRESET_MAP.keys())])
+    if preset_name != "Custom":
+        preset = PRESET_MAP[preset_name]
+        one_day = preset["one_day"]
+        three_day = preset["three_day"]
+        seven_day = preset["seven_day"]
+
     st.divider()
     st.markdown("### 🤖 Active ML Models")
     onset_model = st.selectbox("Onset Classifier", ["RandomForest", "XGBoost", "LightGBM"], index=0)
     active_model = st.selectbox("Active State Classifier", ["XGBoost", "LightGBM", "RandomForest"], index=0)
-    
+
     st.divider()
-    st.info("📍 **Domain:** 20 Open Gauge Stations across the 100 km Maharashtra Western Ghats corridor proxy.")
+    st.info("📍 **Domain:** 20 open gauge stations across the Maharashtra Western Ghats catchment corridor.")
+    if st.button("Refresh telemetry"):
+        st.session_state.last_refresh = datetime.now()
 
-
-
-# --- MAIN HEADER ---
-header_col1, header_col2 = st.columns([1, 4])
-with header_col1:
+header_col_1, header_col_2, header_col_3 = st.columns([1, 4, 2])
+with header_col_1:
     st.markdown(get_logo_html(width=160), unsafe_allow_html=True)
-with header_col2:
+with header_col_2:
     st.title("PRAVAH — Early Warning & Geospatial Intelligence System")
-    st.caption("AI-Driven Multi-Source Spatio-Temporal Flash-Flood Prediction for Maharashtra Western Ghats Catchments")
+    st.caption("AI-driven flash-flood monitoring for Maharashtra Western Ghats catchments")
+with header_col_3:
+    st.markdown(f"**Current time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    st.markdown(f"**Last refresh:** {st.session_state.last_refresh.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.markdown(f"**Backend status:** ✅ Ready | models loaded: {len(engine.available_models)}")
 
 st.divider()
 
-
-# =========================================================================
-# TAB 1: LIVE RISK & CATCHMENT MAP
-# =========================================================================
-if selected_view == "🗺️ Live Risk & Catchment Map":
-    st.subheader("🗺️ Live Catchment Risk Map & Rainfall Scenario Simulator")
-    
-    col_map, col_sim = st.columns([1.5, 1.2])
-    
-    # Rainfall presets
-    PRESETS = {
-        "Custom Sliders": None,
-        "Dry Season (0 mm/day)": [0.0] * 10,
-        "Moderate Monsoon (20–45 mm/day)": [10.0, 15.0, 20.0, 30.0, 25.0, 40.0, 45.0, 35.0, 25.0, 35.0],
-        "Heavy Storm Surge (70–130 mm/day)": [20.0, 35.0, 55.0, 80.0, 110.0, 130.0, 140.0, 115.0, 90.0, 105.0],
-        "August 2019 Extreme Deluge (150–280 mm/day)": [45.0, 85.0, 130.0, 190.0, 250.0, 280.0, 260.0, 210.0, 180.0, 220.0],
-    }
-    
-    with col_sim:
-        st.markdown("#### 🌧️ Live Rainfall Simulator")
-        gauge_list = engine.registered_gauges
-        gauge_labels = {g: f"{g} — {engine.get_station_info(g).get('station_name', 'Unknown')}" for g in gauge_list}
-        selected_gauge = st.selectbox("Target Station Catchment", gauge_list, format_func=lambda x: gauge_labels[x], index=19)
-        
-        preset_choice = st.selectbox("Quick Rainfall Preset Scenario", list(PRESETS.keys()), index=0)
-        live_toggle = st.toggle("Use live rainfall from Open-Meteo", value=False)
-
-        rainfall_values = []
-        if live_toggle:
-            station_info = engine.get_station_info(selected_gauge)
-            try:
-                rainfall_values, source_meta = get_live_rainfall_for_station(station_info)
-                st.success(f"Live rainfall loaded from {source_meta['source']} for {station_info.get('station_name', 'selected gauge')}.")
-            except Exception as exc:
-                st.warning(f"Live rainfall unavailable: {exc}. Falling back to manual values.")
-                rainfall_values = PRESETS["Custom Sliders"] if PRESETS["Custom Sliders"] is None else PRESETS["Custom Sliders"]
-        if not live_toggle:
-            if preset_choice != "Custom Sliders" and PRESETS[preset_choice] is not None:
-                rainfall_values = PRESETS[preset_choice]
-                st.markdown(f"**Applied Scenario (Days T-10 to T-1):**")
-                st.code(f"{rainfall_values}")
-            else:
-                st.markdown("**10-Day Pre-Cutoff Daily Rainfall ($P_{T-10} \\dots P_{T-1}$ mm):**")
-                c1, c2 = st.columns(2)
-                for i in range(10):
-                    target_col = c1 if i < 5 else c2
-                    val = target_col.number_input(f"Day T-{10-i} (mm)", min_value=0.0, max_value=500.0, value=25.0 if i >= 6 else 5.0, step=5.0, key=f"rain_day_{i}")
-                    rainfall_values.append(float(val))
-        
-        # Run prediction
-        pred_res = engine.predict_live(
-            selected_gauge,
-            rainfall_values,
-            onset_model_name=onset_model,
-            active_model_name=active_model,
-        )
-        
-        tier = pred_res["alert_tier"]["tier"]
-        color = pred_res["alert_tier"]["color"]
-        rec = pred_res["alert_tier"]["recommendation"]
-        
-        st.divider()
-        st.markdown(f"#### Alert Status: **:{color.lower()}[{ALERT_EMOJI_MAP.get(tier, tier)}]**")
-        st.info(f"**Action Protocol:** {rec}")
-        
-        kpi1, kpi2 = st.columns(2)
-        kpi1.metric(
-            label="1-Day Ahead Onset Risk",
-            value=f"{pred_res['task_a_onset']['probability']:.1%}",
-            delta="HIGH ONSET RISK" if pred_res['task_a_onset']['is_flood_onset_predicted'] else "NORMAL",
-            delta_color="inverse" if pred_res['task_a_onset']['is_flood_onset_predicted'] else "normal",
-        )
-        kpi2.metric(
-            label="Active Flood State",
-            value=f"{pred_res['task_b_active']['probability']:.1%}",
-            delta="ACTIVE INUNDATION" if pred_res['task_b_active']['is_active_flood_predicted'] else "INACTIVE",
-            delta_color="inverse" if pred_res['task_b_active']['is_active_flood_predicted'] else "normal",
-        )
-        
-        # Antecedent Bar Chart
-        fig_rain = go.Figure(data=[
-            go.Bar(
-                x=[f"T-{10-i}" for i in range(10)],
-                y=rainfall_values,
-                marker_color="#0072ff"
-            )
-        ])
-        fig_rain.update_layout(
-            title="Antecedent 10-Day Rainfall Profile",
-            xaxis_title="Days Prior to Forecast Cutoff",
-            yaxis_title="Precipitation (mm/day)",
-            height=230,
-            margin=dict(l=20, r=20, t=35, b=20),
-        )
-        st.plotly_chart(fig_rain, width="stretch")
-
-    with col_map:
-        st.markdown("#### 🗺️ Geospatial Catchment Boundary Map")
-        
-        # Use a single stable OpenStreetMap base layer to avoid Leaflet iframe errors
-        m = folium.Map(
-            location=[18.0, 74.3],
-            zoom_start=8,
-            tiles="OpenStreetMap",
-            control_scale=True,
-        )
-        
-        # Add Catchment Polygons
-        for feature in geojson_data.get("features", []):
-            gid = clean_gauge_id(feature.get("properties", {}).get("GaugeID", ""))
-            info = engine.get_station_info(gid)
-            is_selected = (gid == selected_gauge)
-            
-            poly_color = ALERT_COLOR_MAP.get(tier if is_selected else "NORMAL", "#2ecc71")
-            
-            folium.GeoJson(
-                feature,
-                style_function=lambda x, is_sel=is_selected, p_color=poly_color: {
-                    "fillColor": p_color if is_sel else "#3498db",
-                    "color": "#1a252f",
-                    "weight": 3.5 if is_sel else 1.2,
-                    "fillOpacity": 0.7 if is_sel else 0.3,
-                },
-                tooltip=(
-                    f"<b>Station:</b> {info.get('station_name')} (Gauge {gid})<br>"
-                    f"<b>River:</b> {info.get('river')}<br>"
-                    f"<b>Danger Level:</b> {info.get('danger_level_m')} m"
-                ),
-            ).add_to(m)
-            
-            # Station Pin Marker
-            lat = info.get("latitude", 0.0)
-            lon = info.get("longitude", 0.0)
-            if lat > 0 and lon > 0:
-                marker_color = (
-                    "red" if is_selected and tier in ["WARNING", "EMERGENCY"]
-                    else ("orange" if is_selected and tier == "ADVISORY" else "blue")
-                )
-                folium.Marker(
-                    location=[lat, lon],
-                    popup=f"<b>{info.get('station_name')}</b><br>River: {info.get('river')}<br>Danger: {info.get('danger_level_m')} m",
-                    icon=folium.Icon(color=marker_color, icon="tint", prefix="fa"),
-                ).add_to(m)
-        
-        components.html(m.get_root().render(), height=620, scrolling=False)
-
-
-# =========================================================================
-# TAB 2: HISTORICAL SIMULATION REPLAY
-# =========================================================================
-elif selected_view == "⏳ Historical Simulation Replay":
-    st.subheader("⏳ Historical Flood Event Replay & Multi-Station Simulation (1964–2020)")
-    
-    HISTORICAL_HIGHLIGHTS = {
-        "2019-08-05 (Catastrophic Kolhapur / Sangli Flood Surge)": "2019-08-05",
-        "2019-08-04 (August 2019 Monsoon Peak Flood Day)": "2019-08-04",
-        "2005-07-26 (Record Western Maharashtra Deluge)": "2005-07-26",
-        "2006-08-06 (Krishna Basin Regional Flood Event)": "2006-08-06",
-        "1989-07-24 (Historical Severe Western Ghats Monsoon)": "1989-07-24",
-        "2018-08-15 (Moderate Monsoon State)": "2018-08-15",
-        "2015-02-10 (Dry Winter Baseline Day)": "2015-02-10",
-    }
-    
-    col_date, col_summary = st.columns([1.2, 1.8])
-    with col_date:
-        event_choice = st.selectbox("Benchmark Event Quick Selection", list(HISTORICAL_HIGHLIGHTS.keys()), index=1)
-        default_date = HISTORICAL_HIGHLIGHTS[event_choice]
-        selected_date = st.text_input("Or Enter Any Historical Date (1964-12-01 to 2020-05-27)", value=default_date)
-    
-    sim_data = engine.predict_historical_date(
-        selected_date,
+try:
+    validate_rainfall_inputs(one_day, three_day, seven_day)
+    rainfall_history = build_10d_history_from_totals(one_day, three_day, seven_day)
+    if rainfall_mode == "Live Weather":
+        station_info = engine.get_station_info(selected_gauge)
+        try:
+            rainfall_history, weather_meta = get_live_rainfall_for_station(station_info)
+            st.info(f"Live data source: {weather_meta.get('source', 'Open-Meteo')} | station {station_info.get('station_name', 'Unknown')}")
+        except Exception as exc:
+            st.warning(f"Live weather unavailable: {exc}. Falling back to manual rainfall values.")
+    live_prediction = engine.predict_live(
+        gauge_id=selected_gauge,
+        rainfall_history_10d=rainfall_history,
         onset_model_name=onset_model,
         active_model_name=active_model,
     )
-    
-    with col_summary:
-        st.markdown(f"#### Regional Simulation Summary for **{selected_date}**")
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Active Gauges", sim_data["total_stations_active"])
-        k2.metric("🔴 Emergency Alerts", sim_data["emergency_count"])
-        k3.metric("🟠 Warnings", sim_data["warning_count"])
-        k4.metric("🟢 Normal Gauges", sim_data["normal_count"])
-    
-    st.divider()
-    st.markdown("#### Catchment-Level Predictions vs. CWC Ground Truth Observations")
-    
-    sim_df = pd.DataFrame(sim_data["catchments"])
-    sim_df["Alert Status"] = sim_df["alert_tier"].map(lambda x: ALERT_EMOJI_MAP.get(x, x))
-    sim_df["Actual CWC Ground Event"] = sim_df["actual_active_observed"].map({0: "⚪ No Flood", 1: "🟡 Flood", 2: "🔴 Severe Flood"})
-    
-    display_cols = [
-        "gauge_id",
-        "station_name",
-        "river",
-        "Alert Status",
-        "onset_probability",
-        "active_probability",
-        "Actual CWC Ground Event",
-        "rain_1d_mm",
-        "rain_3d_sum_mm",
-        "rain_7d_sum_mm",
-    ]
-    
+except Exception as exc:
+    live_prediction = None
+    st.warning(f"Validation / forecast error: {exc}")
+
+count_cols = st.columns(4)
+risk_counts = {tier: 0 for tier in RISK_ORDER}
+if live_prediction is not None:
+    for gauge in engine.registered_gauges:
+        result = engine.predict_live(
+            gauge_id=gauge,
+            rainfall_history_10d=rainfall_history,
+            onset_model_name=onset_model,
+            active_model_name=active_model,
+        )
+        risk_counts[result["alert_tier"]["tier"]] = risk_counts.get(result["alert_tier"]["tier"], 0) + 1
+for idx, tier in enumerate(RISK_ORDER):
+    count_cols[idx].metric(f"{ALERT_EMOJI_MAP[tier]}", risk_counts.get(tier, 0))
+
+if live_prediction is not None:
+    station_info = engine.get_station_info(selected_gauge)
+    current_tier = live_prediction["alert_tier"]["tier"]
+    current_prob = live_prediction["task_a_onset"]["probability"]
+    banner_style = ALERT_COLOR_MAP.get(current_tier, "#2ecc71")
+    st.markdown(
+        f"<div style='padding:14px 16px; border-radius:12px; background:{banner_style}; color:white; font-weight:600;'>"
+        f"{ALERT_EMOJI_MAP.get(current_tier, current_tier)} {current_tier} | Probability {current_prob:.1%} | Station {station_info.get('station_name')} | Basin {station_info.get('basin')} | Issued {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Data quality: validated"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    if current_tier == "EMERGENCY":
+        st.warning("Emergency: evacuation and immediate response guidance are active for this catchment.")
+    elif current_tier == "WARNING":
+        st.warning("Warning: inundation watch and emergency preparation should be initiated.")
+    elif current_tier == "ADVISORY":
+        st.info("Advisory: increased monitoring is recommended for this station.")
+    else:
+        st.success("Normal: routine surveillance is sufficient for the current forecast.")
+
+    st.download_button(
+        label="Download advisory summary",
+        data=(
+            f"PRAVAH advisory summary\n"
+            f"Station: {station_info.get('station_name')}\n"
+            f"Gauge ID: {selected_gauge}\n"
+            f"Basin: {station_info.get('basin')}\n"
+            f"Risk tier: {current_tier}\n"
+            f"Probability: {current_prob:.1%}\n"
+            f"Issued: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        ),
+        file_name=f"pravah_advisory_{selected_gauge}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+        mime="text/plain",
+    )
+
+if selected_view == "🗺️ Live Risk & Catchment Map":
+    st.subheader("🗺️ Live Catchment Risk Map & Rainfall Scenario Simulator")
+    if live_prediction is None:
+        st.info("Please correct the rainfall values to proceed with ML inference.")
+    else:
+        map_col, detail_col = st.columns([1.6, 1.2])
+        with map_col:
+            live_map = build_live_map(selected_gauge, rainfall_history, onset_model, active_model)
+            components.html(live_map.get_root().render(), height=620, scrolling=False)
+        with detail_col:
+            info = engine.get_station_info(selected_gauge)
+            st.markdown(f"### {info.get('station_name')} ({selected_gauge})")
+            st.metric("Flood probability", f"{live_prediction['task_a_onset']['probability']:.1%}")
+            st.metric("Risk tier", live_prediction["alert_tier"]["tier"])
+            st.markdown(f"**Onset model used:** {live_prediction['task_a_onset']['model_used']}")
+            st.markdown(f"**Active model used:** {live_prediction['task_b_active']['model_used']}")
+            st.markdown(f"**Model thresholds:** onset {live_prediction['task_a_onset']['threshold']:.4f}; active {live_prediction['task_b_active']['threshold']:.4f}")
+            st.markdown(f"**Rainfall summary:** 1d {live_prediction['antecedent_rainfall_summary']['rain_1d_mm']} mm | 3d {live_prediction['antecedent_rainfall_summary']['rain_3d_sum_mm']} mm | 7d {live_prediction['antecedent_rainfall_summary']['rain_7d_sum_mm']} mm | 10d {live_prediction['antecedent_rainfall_summary']['rain_10d_sum_mm']} mm")
+            st.markdown(f"**Recommendation:** {live_prediction['alert_tier']['recommendation']}")
+            st.markdown(f"**Coordinates:** {info.get('latitude')}°, {info.get('longitude')}°")
+            st.markdown(f"**Warning stage:** {info.get('warning_level_m', 0.0)} m")
+            st.markdown(f"**Danger stage:** {info.get('danger_level_m', 0.0)} m")
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=[f"T-{10-i}" for i in range(10)], y=rainfall_history, name="Rainfall", marker_color="#4f8ef7"))
+        fig.add_hline(y=60, line_dash="dash", line_color="red", annotation_text="threshold")
+        fig.update_layout(title="Rainfall analytics", xaxis_title="Days prior", yaxis_title="Rainfall (mm)")
+        st.plotly_chart(fig, use_container_width=True)
+
+elif selected_view == "⏳ Historical Simulation Replay":
+    st.subheader("⏳ Historical Flood Event Replay")
+    historical_result = engine.predict_historical_date(str(selected_date), onset_model_name=onset_model, active_model_name=active_model)
+    historical_df = pd.DataFrame(historical_result["catchments"])
+    if risk_filter != "ALL":
+        historical_df = historical_df[historical_df["alert_tier"] == risk_filter]
+    st.markdown(f"### {selected_date} summary")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Active gauges", historical_result["total_stations_active"])
+    k2.metric("Emergency", historical_result["emergency_count"])
+    k3.metric("Warning", historical_result["warning_count"])
+    k4.metric("Advisory", historical_result["advisory_count"])
     st.dataframe(
-        sim_df[display_cols].rename(columns={
+        historical_df[["gauge_id", "station_name", "river", "alert_tier", "onset_probability", "active_probability", "rain_1d_mm", "rain_3d_sum_mm", "rain_7d_sum_mm", "actual_onset_observed", "actual_active_observed"]].rename(columns={
             "gauge_id": "Gauge ID",
             "station_name": "Station",
             "river": "River",
-            "onset_probability": "Onset Prob",
-            "active_probability": "Active Prob",
-            "rain_1d_mm": "Rain 1d (mm)",
-            "rain_3d_sum_mm": "Rain 3d (mm)",
-            "rain_7d_sum_mm": "Rain 7d (mm)",
+            "alert_tier": "Risk tier",
+            "onset_probability": "Onset prob",
+            "active_probability": "Active prob",
+            "rain_1d_mm": "1d (mm)",
+            "rain_3d_sum_mm": "3d (mm)",
+            "rain_7d_sum_mm": "7d (mm)",
+            "actual_onset_observed": "Observed onset",
+            "actual_active_observed": "Observed active",
         }),
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
     )
 
-
-# =========================================================================
-# TAB 3: MODEL BENCHMARKS & EXPLAINABILITY
-# =========================================================================
 elif selected_view == "📊 Model Benchmarks & Explainability":
-    st.subheader("📊 Machine Learning Benchmark Comparisons & Feature Importance")
-    
+    st.subheader("📊 Model Benchmarks")
     metrics = engine.get_models_summary()
-    
-    tab_a, tab_b = st.tabs(["Task A: Flood Onset Prediction", "Task B: Daily Active Flood State"])
-    
+    tab_a, tab_b = st.tabs(["Task A: Flood Onset", "Task B: Active Flood State"])
+
     with tab_a:
-        st.markdown("#### Task A — 1-Day Ahead Flood Onset Detection (`target_onset > 0`)")
-        st.caption("Evaluated Out-of-Sample on Unseen Test Years (2016–2020)")
-        
         rows_a = []
-        for m_name, m_dict in metrics.get("task_a_onset", {}).items():
+        for model_name, summary in metrics.get("task_a_onset", {}).items():
             rows_a.append({
-                "Model": m_name,
-                "Tuned Threshold": round(m_dict.get("threshold", 0), 4),
-                "Precision": f"{m_dict.get('precision', 0):.2%}",
-                "Recall": f"{m_dict.get('recall', 0):.2%}",
-                "F1 Score": round(m_dict.get("f1", 0), 4),
-                "CSI (Threat Score)": round(m_dict.get("csi", 0), 4),
-                "ROC-AUC": round(m_dict.get("roc_auc", 0), 4),
-                "Average Precision (PR-AUC)": round(m_dict.get("average_precision", 0), 4),
+                "Model": model_name,
+                "Threshold": summary.get("threshold", 0.0),
+                "Precision": summary.get("precision", 0.0),
+                "Recall": summary.get("recall", 0.0),
+                "F1": summary.get("f1", 0.0),
+                "ROC-AUC": summary.get("roc_auc", 0.0),
             })
-        st.dataframe(pd.DataFrame(rows_a), width="stretch", hide_index=True)
-        
-        # Feature Importance Chart
-        rf_feats = metrics.get("task_a_onset", {}).get("RandomForest", {}).get("top_15_features", [])
-        if rf_feats:
-            df_feat = pd.DataFrame(rf_feats).sort_values("importance", ascending=True)
-            df_feat["feature_name"] = df_feat["feature"].str.replace("num__", "")
-            
-            fig = px.bar(
-                df_feat,
-                x="importance",
-                y="feature_name",
-                orientation="h",
-                title="Random Forest Top 15 Feature Importances (Task A: Onset)",
-                labels={"importance": "Gini Importance", "feature_name": "Predictor Feature"},
-                color="importance",
-                color_continuous_scale="Blues",
-            )
-            fig.update_layout(height=450)
-            st.plotly_chart(fig, width="stretch")
+        st.dataframe(pd.DataFrame(rows_a), use_container_width=True, hide_index=True)
 
     with tab_b:
-        st.markdown("#### Task B — Daily Active Flood State Classification (`target_active > 0`)")
-        st.caption("Evaluated Out-of-Sample on Unseen Test Years (2016–2020)")
-        
         rows_b = []
-        for m_name, m_dict in metrics.get("task_b_active", {}).items():
+        for model_name, summary in metrics.get("task_b_active", {}).items():
             rows_b.append({
-                "Model": m_name,
-                "Tuned Threshold": round(m_dict.get("threshold", 0), 4),
-                "Precision": f"{m_dict.get('precision', 0):.2%}",
-                "Recall": f"{m_dict.get('recall', 0):.2%}",
-                "F1 Score": round(m_dict.get("f1", 0), 4),
-                "CSI (Threat Score)": round(m_dict.get("csi", 0), 4),
-                "ROC-AUC": round(m_dict.get("roc_auc", 0), 4),
-                "Average Precision (PR-AUC)": round(m_dict.get("average_precision", 0), 4),
+                "Model": model_name,
+                "Threshold": summary.get("threshold", 0.0),
+                "Precision": summary.get("precision", 0.0),
+                "Recall": summary.get("recall", 0.0),
+                "F1": summary.get("f1", 0.0),
+                "ROC-AUC": summary.get("roc_auc", 0.0),
             })
-        st.dataframe(pd.DataFrame(rows_b), width="stretch", hide_index=True)
-        
-        # XGBoost Feature Importance
-        xgb_feats = metrics.get("task_b_active", {}).get("XGBoost", {}).get("top_15_features", [])
-        if xgb_feats:
-            df_xgb = pd.DataFrame(xgb_feats).sort_values("importance", ascending=True)
-            df_xgb["feature_name"] = df_xgb["feature"].str.replace("num__", "")
-            
-            fig_b = px.bar(
-                df_xgb,
-                x="importance",
-                y="feature_name",
-                orientation="h",
-                title="XGBoost Top 15 Feature Importances (Task B: Active State)",
-                labels={"importance": "Gain Importance", "feature_name": "Predictor Feature"},
-                color="importance",
-                color_continuous_scale="Tealgrn",
-            )
-            fig_b.update_layout(height=450)
-            st.plotly_chart(fig_b, width="stretch")
+        st.dataframe(pd.DataFrame(rows_b), use_container_width=True, hide_index=True)
 
-
-# =========================================================================
-# TAB 4: CATCHMENT GEOSPATIAL TELEMETRY
-# =========================================================================
 elif selected_view == "🛰️ Catchment Geospatial Telemetry":
-    st.subheader("🛰️ Catchment Morphometric, Terrain & Socio-Economic Profiles")
-    
     chars_path = REPO_ROOT / "data" / "processed" / "target_catchment_characteristics.csv"
     if chars_path.exists():
         chars_df = pd.read_csv(chars_path)
         chars_df["clean_id"] = chars_df["GaugeID"].map(clean_gauge_id)
-        
         gauge_choice = st.selectbox(
-            "Select Catchment for In-Depth Profile",
+            "Select catchment profile",
             chars_df["clean_id"].tolist(),
             format_func=lambda x: f"Gauge {x} — {engine.get_station_info(x).get('station_name', 'Unknown')}"
         )
-        
         row = chars_df[chars_df["clean_id"] == gauge_choice].iloc[0]
         info = engine.get_station_info(gauge_choice)
-        
-        st.markdown(f"### Profile: **{info.get('station_name')}** (Gauge {gauge_choice})")
+        st.markdown(f"### {info.get('station_name')} (Gauge {gauge_choice})")
         st.write(f"**River:** {info.get('river')} | **Basin:** {info.get('basin')} | **Coordinates:** {info.get('latitude')}°N, {info.get('longitude')}°E")
-        
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Drainage Area", f"{float(row.get('Drainage Area', 0)):,.1f} km²")
         c2.metric("Catchment Relief", f"{float(row.get('Catchment Relief', 0)):,.0f} m")
         c3.metric("Stream Order", int(row.get("Stream Order", 1)))
         c4.metric("Drainage Density", f"{float(row.get('Drainage Density', 0)):.5f}")
-        
-        c5, c6, c7, c8 = st.columns(4)
-        c5.metric("Population Count", f"{float(row.get('Population Count', 0)):,.0f}")
-        c6.metric("Population Density", f"{float(row.get('Population Density', 0)):.1f} /km²")
-        c7.metric("Road Density", f"{float(row.get('Road Density', 0)):.1f} km/km²")
-        c8.metric("Urban Percentage", f"{float(row.get('Urban percentage', 0)):.1f}%")
-        
-        st.divider()
-        st.markdown("#### Environmental & Geological Classifications")
-        e1, e2, e3 = st.columns(3)
-        e1.info(f"🌿 **Land Cover:** {row.get('Land cover', 'N/A')}")
-        e2.info(f"🏔️ **Soil Type:** {row.get('Soil type', 'N/A')}")
-        e3.info(f"🪨 **Lithology:** {row.get('lithology type', 'N/A')}")
-        
-        st.markdown("#### Bioclimatic Characteristics")
-        b1, b2, b3, b4 = st.columns(4)
-        b1.write(f"**Annual Mean Temp:** {float(row.get('Annual Mean Temperature', 0)):.1f} °C")
-        b2.write(f"**Annual Precipitation:** {float(row.get('Annual Precipitation', 0)):.0f} mm")
-        b3.write(f"**Precip Seasonality:** {float(row.get('Precipitation Seasonality', 0)):.1f}")
-        b4.write(f"**Climate Type:** {row.get('KoppenGeiger Climate Type', 'N/A')}")
+        st.write(f"**Population count:** {float(row.get('Population Count', 0)):,.0f}")
+        st.write(f"**Urban percentage:** {float(row.get('Urban percentage', 0)):.1f}%")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -88,3 +89,15 @@ class HealthResponse(BaseModel):
     study_region: str = "Maharashtra Western Ghats"
     available_models: List[str]
     total_catchments: int
+
+
+class AlertRecord(BaseModel):
+    id: str
+    tier: str
+    gauge_id: str
+    station_name: str
+    probability: float
+    active_probability: float
+    recommendation: str
+    created_at: datetime
+    acknowledged: bool = False

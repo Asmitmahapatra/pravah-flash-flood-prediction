@@ -130,6 +130,29 @@ class PravahInferenceAndApiTests(unittest.TestCase):
         self.assertIn("task_a_onset", data)
         self.assertIn("task_b_active", data)
 
+    def test_api_alert_lifecycle(self):
+        payload = {
+            "gauge_id": "684",
+            "rainfall_history_10d": [5.0, 8.0, 12.0, 14.0, 18.0, 25.0, 30.0, 40.0, 52.0, 68.0],
+            "onset_model": "RandomForest",
+            "active_model": "XGBoost",
+        }
+        prediction = self.client.post("/api/v1/predict/live", json=payload)
+        self.assertEqual(prediction.status_code, 200)
+        self.assertNotEqual(prediction.json()["alert_tier"]["tier"], "NORMAL")
+
+        alerts = self.client.get("/api/v1/alerts?include_acknowledged=false")
+        self.assertEqual(alerts.status_code, 200)
+        alert = next(item for item in alerts.json() if item["gauge_id"] == "684")
+
+        acknowledged = self.client.post(f"/api/v1/alerts/{alert['id']}/acknowledge")
+        self.assertEqual(acknowledged.status_code, 200)
+        self.assertTrue(acknowledged.json()["acknowledged"])
+
+        unread = self.client.get("/api/v1/alerts?include_acknowledged=false")
+        self.assertEqual(unread.status_code, 200)
+        self.assertNotIn(alert["id"], [item["id"] for item in unread.json()])
+
 
 if __name__ == "__main__":
     unittest.main()

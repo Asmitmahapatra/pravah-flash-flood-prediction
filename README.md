@@ -70,6 +70,26 @@ PRAVAH is a data-driven AI and geospatial system for flash-flood prediction and 
 
 ## Phase 4 & Phase 5: REST API & Interactive Streamlit Dashboard
 
+### 3. React Operations Dashboard
+
+The recommended operator interface is the React/TypeScript client in `frontend/`. It keeps the Python inference engine and FastAPI service, while providing a richer control-room experience with live catchment mapping, historical replay, model provenance, and responsive controls.
+
+Start the API first:
+
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
+Then start the React client in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173/`. The original Streamlit dashboard remains available with the command below for notebook-style exploration.
+
 ### 1. Launching the Interactive Web Dashboard:
 ```bash
 streamlit run src/dashboard/app.py
